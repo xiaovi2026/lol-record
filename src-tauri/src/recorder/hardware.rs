@@ -46,7 +46,7 @@ impl HardwareDetector {
 
         // Use windows crate DXGI factory to inspect adapter
         use windows::Win32::Graphics::Dxgi::{
-            CreateDXGIFactory1, IDXGIFactory1, DXGI_ADAPTER_DESC1,
+            CreateDXGIFactory1, IDXGIAdapter1, IDXGIFactory1, DXGI_ADAPTER_DESC1,
         };
 
         unsafe {
