@@ -85,10 +85,16 @@ pub fn run() {
             let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_item, &folder_item, &quit_item])?;
 
-            let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
+            let default_icon = app.default_window_icon().cloned();
+            let mut tray_builder = TrayIconBuilder::new()
                 .menu(&menu)
-                .tooltip("LoL Record - 英雄联盟无感录像系统")
+                .tooltip("LoL Record - 英雄联盟无感录像系统");
+
+            if let Some(icon) = default_icon {
+                tray_builder = tray_builder.icon(icon);
+            }
+
+            let _tray = tray_builder
                 .on_menu_event(move |_app, event| match event.id.as_ref() {
                     "show" => {
                         if let Some(window) = handle.get_webview_window("main") {

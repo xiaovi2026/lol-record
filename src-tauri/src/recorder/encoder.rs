@@ -110,7 +110,7 @@ impl MediaEncoder {
         mut audio_rx: mpsc::Receiver<Vec<f32>>,
     ) {
         use windows::Win32::Media::MediaFoundation::{
-            MFCreateSinkWriterFromURL, MFShutdown, MFStartup, MF_STARTUP_NOSOCKET, MF_VERSION,
+            MFShutdown, MFStartup, MF_STARTUP_NOSOCKET, MF_VERSION,
         };
         use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
 

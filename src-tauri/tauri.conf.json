@@ -26,11 +26,6 @@
         "theme": "Dark"
       }
     ],
-    "trayIcon": {
-      "iconPath": "icons/icon.png",
-      "tooltip": "LoL Record - 英雄联盟无感录像系统",
-      "title": "LoL Record"
-    },
     "security": {
       "csp": null
     }
