@@ -109,14 +109,14 @@ impl MediaEncoder {
         mut video_rx: mpsc::Receiver<VideoFrame>,
         mut audio_rx: mpsc::Receiver<Vec<f32>>,
     ) {
-        use windows::Win32::Media::MediaFoundation::{MFShutdown, MFStartup, MF_VERSION};
+        use windows::Win32::Media::MediaFoundation::{MFShutdown, MFStartup};
         use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
 
         info!("Initializing Windows Media Foundation (WMF) hardware encoder sink writer...");
 
         unsafe {
             let _ = CoInitializeEx(Some(std::ptr::null_mut()), COINIT_MULTITHREADED);
-            let _ = MFStartup(MF_VERSION, 1);
+            let _ = MFStartup(0x00020070, 1);
         }
 
         // Open direct MP4 writer file

@@ -98,7 +98,7 @@ impl ScreenCaptureEngine {
             unsafe {
                 let window_title =
                     std::ffi::CString::new("League of Legends (TM) Client").unwrap_or_default();
-                let class_name = PCSTR(std::ptr::null());
+                let class_name = PCSTR(std::ptr::null::<u8>());
                 let window_name = PCSTR(window_title.as_ptr() as *const u8);
                 let hwnd = FindWindowA(class_name, window_name);
 
