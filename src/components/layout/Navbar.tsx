@@ -76,7 +76,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               LoL Record
             </span>
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-hextech-blue/10 text-hextech-blue font-mono border border-hextech-blue/30">
-              v0.1.0
+              v0.1.1
             </span>
           </div>
           <p className="text-[11px] text-slate-400">英雄联盟无感录像与自动导出系统</p>

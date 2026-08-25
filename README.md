@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![LoL Record Banner](https://img.shields.io/badge/LoL%20Record-v0.1.0-0ac8b9?style=for-the-badge&logo=riotgames)
+![LoL Record Banner](https://img.shields.io/badge/LoL%20Record-v0.1.1-0ac8b9?style=for-the-badge&logo=riotgames)
 ![Tauri v2](https://img.shields.io/badge/Tauri-v2.0-24c8db?style=for-the-badge&logo=tauri)
 ![Rust](https://img.shields.io/badge/Rust-1.78+-dea584?style=for-the-badge&logo=rust)
 ![React 19](https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react)

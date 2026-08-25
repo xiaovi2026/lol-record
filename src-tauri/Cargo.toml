@@ -1,6 +1,6 @@
 [package]
 name = "lol-record"
-version = "0.1.0"
+version = "0.1.1"
 description = "Seamless LoL Match Auto-Recording and Exporting System"
 edition = "2021"
 
