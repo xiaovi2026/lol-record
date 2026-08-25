@@ -52,7 +52,7 @@ impl HardwareDetector {
         unsafe {
             if let Ok(factory) = CreateDXGIFactory1::<IDXGIFactory1>() {
                 if let Ok(adapter) = factory.EnumAdapters1(0) {
-                    let mut desc = DXGI_ADAPTER_DESC1::default();
+                    let mut desc: DXGI_ADAPTER_DESC1 = unsafe { std::mem::zeroed() };
                     if adapter.GetDesc1(&mut desc).is_ok() {
                         let desc_str = String::from_utf16_lossy(&desc.Description);
                         let clean_desc = desc_str.trim_matches('\0').to_string();
