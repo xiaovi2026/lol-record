@@ -115,7 +115,7 @@ impl MediaEncoder {
         info!("Initializing Windows Media Foundation (WMF) hardware encoder sink writer...");
 
         unsafe {
-            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let _ = CoInitializeEx(Some(std::ptr::null_mut()), COINIT_MULTITHREADED);
             let _ = MFStartup(MF_VERSION, 1);
         }
 
