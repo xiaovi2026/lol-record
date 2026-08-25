@@ -95,11 +95,10 @@ impl ScreenCaptureEngine {
             let loop_start = Instant::now();
             let elapsed_ms = start_time.elapsed().as_millis() as u64;
 
-            // Locate League of Legends game window if present
             unsafe {
                 let window_title =
                     std::ffi::CString::new("League of Legends (TM) Client").unwrap_or_default();
-                let hwnd = FindWindowA(PCSTR::null(), PCSTR(window_title.as_ptr() as _));
+                let hwnd = FindWindowA(None, PCSTR(window_title.as_ptr() as *const u8));
 
                 // If game window exists, WGC or DXGI captures the DirectX swapchain surface
                 let _ = hwnd;
