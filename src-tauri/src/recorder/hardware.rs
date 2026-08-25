@@ -55,7 +55,7 @@ impl HardwareDetector {
                     let mut desc = DXGI_ADAPTER_DESC1::default();
                     if adapter.GetDesc1(&mut desc).is_ok() {
                         let desc_str = String::from_utf16_lossy(&desc.Description);
-                        let clean_desc = desc_str.trim_matches(char::from(0)).to_string();
+                        let clean_desc = desc_str.trim_matches('\0').to_string();
                         name = clean_desc.clone();
 
                         let desc_lower = clean_desc.to_lowercase();
