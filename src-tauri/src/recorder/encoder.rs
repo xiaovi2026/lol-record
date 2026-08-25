@@ -1,11 +1,11 @@
 use super::capture::VideoFrame;
 use std::fs::File;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 pub struct MediaEncoderConfig {
     pub output_path: PathBuf,
@@ -57,7 +57,12 @@ impl MediaEncoder {
 
         info!(
             "Starting Media Encoder: Target {:?}, {}x{} @ {} FPS, {} kbps, Codec: {}",
-            config.output_path, config.width, config.height, config.fps, config.bitrate_kbps, config.codec
+            config.output_path,
+            config.width,
+            config.height,
+            config.fps,
+            config.bitrate_kbps,
+            config.codec
         );
 
         if let Some(parent) = config.output_path.parent() {
@@ -105,7 +110,7 @@ impl MediaEncoder {
         mut audio_rx: mpsc::Receiver<Vec<f32>>,
     ) {
         use windows::Win32::Media::MediaFoundation::{
-            MFCreateSinkWriterFromURL, MFStartup, MFShutdown, MF_STARTUP_NOSOCKET, MF_VERSION,
+            MFCreateSinkWriterFromURL, MFShutdown, MFStartup, MF_STARTUP_NOSOCKET, MF_VERSION,
         };
         use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
 
@@ -120,7 +125,10 @@ impl MediaEncoder {
         let mut out_file = match File::create(&config.output_path) {
             Ok(f) => f,
             Err(e) => {
-                error!("Failed to create output MP4 file {:?}: {e}", config.output_path);
+                error!(
+                    "Failed to create output MP4 file {:?}: {e}",
+                    config.output_path
+                );
                 return;
             }
         };
@@ -144,7 +152,10 @@ impl MediaEncoder {
             if let Ok(frame) = video_rx.try_recv() {
                 received_anything = true;
                 frames_counter.fetch_add(1, Ordering::Relaxed);
-                bytes_counter.fetch_add((config.bitrate_kbps * 128 / config.fps.max(1)) as u64, Ordering::Relaxed);
+                bytes_counter.fetch_add(
+                    (config.bitrate_kbps * 128 / config.fps.max(1)) as u64,
+                    Ordering::Relaxed,
+                );
             }
 
             if let Ok(_audio) = audio_rx.try_recv() {
@@ -162,7 +173,10 @@ impl MediaEncoder {
             let _ = MFShutdown();
             CoUninitialize();
         }
-        info!("Windows Media Foundation encoding finished successfully for {:?}", config.output_path);
+        info!(
+            "Windows Media Foundation encoding finished successfully for {:?}",
+            config.output_path
+        );
     }
 
     #[cfg(not(target_os = "windows"))]

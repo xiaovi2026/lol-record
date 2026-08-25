@@ -10,7 +10,11 @@ impl NamingFormatter {
         let datetime_str = metadata.start_time.format("%Y%m%d_%H%M%S").to_string();
 
         let queue_clean = if metadata.queue_name.is_empty() {
-            if metadata.game_mode.is_empty() { "Match".to_string() } else { metadata.game_mode.clone() }
+            if metadata.game_mode.is_empty() {
+                "Match".to_string()
+            } else {
+                metadata.game_mode.clone()
+            }
         } else {
             metadata.queue_name.replace(" ", "")
         };
@@ -21,10 +25,20 @@ impl NamingFormatter {
             metadata.champion_name.replace(" ", "").replace("'", "")
         };
 
-        let kda_str = format!("{}-{}-{}", metadata.kills, metadata.deaths, metadata.assists);
+        let kda_str = format!(
+            "{}-{}-{}",
+            metadata.kills, metadata.deaths, metadata.assists
+        );
         let result_str = if metadata.win { "Victory" } else { "Defeat" };
-        let duration_str = format!("{}m{}s", metadata.game_duration_seconds / 60, metadata.game_duration_seconds % 60);
-        let game_id_str = metadata.game_id.map(|id| id.to_string()).unwrap_or_else(|| "0".to_string());
+        let duration_str = format!(
+            "{}m{}s",
+            metadata.game_duration_seconds / 60,
+            metadata.game_duration_seconds % 60
+        );
+        let game_id_str = metadata
+            .game_id
+            .map(|id| id.to_string())
+            .unwrap_or_else(|| "0".to_string());
 
         let mut output = template.to_string();
         output = output.replace("{date}", &date_str);
@@ -42,7 +56,10 @@ impl NamingFormatter {
 
         // Sanitize invalid Windows filename characters: \ / : * ? " < > |
         let invalid_chars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
-        let sanitized: String = output.chars().map(|c| if invalid_chars.contains(&c) { '_' } else { c }).collect();
+        let sanitized: String = output
+            .chars()
+            .map(|c| if invalid_chars.contains(&c) { '_' } else { c })
+            .collect();
 
         if !sanitized.ends_with(".mp4") {
             format!("{}.mp4", sanitized)
@@ -59,7 +76,9 @@ mod tests {
 
     #[test]
     fn test_naming_formatter_standard() {
-        let fixed_time = chrono::Local.with_ymd_and_hms(2026, 8, 25, 14, 30, 0).unwrap();
+        let fixed_time = chrono::Local
+            .with_ymd_and_hms(2026, 8, 25, 14, 30, 0)
+            .unwrap();
         let meta = MatchMetadata {
             game_id: Some(123456789),
             game_mode: "CLASSIC".to_string(),
@@ -84,7 +103,9 @@ mod tests {
 
     #[test]
     fn test_naming_formatter_sanitization() {
-        let fixed_time = chrono::Local.with_ymd_and_hms(2026, 8, 25, 14, 30, 0).unwrap();
+        let fixed_time = chrono::Local
+            .with_ymd_and_hms(2026, 8, 25, 14, 30, 0)
+            .unwrap();
         let meta = MatchMetadata {
             game_id: Some(999),
             game_mode: "CLASSIC".to_string(),
@@ -103,6 +124,9 @@ mod tests {
         };
 
         let result = NamingFormatter::format("{date}_{queue}_{champion}_{kda}_{result}", &meta);
-        assert_eq!(result, "2026-08-25_Ranked_Special_Mode_KaiSa_5-0-10_Victory.mp4");
+        assert_eq!(
+            result,
+            "2026-08-25_Ranked_Special_Mode_KaiSa_5-0-10_Victory.mp4"
+        );
     }
 }

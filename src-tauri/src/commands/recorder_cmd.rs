@@ -28,7 +28,7 @@ pub async fn get_recorder_telemetry(
 ) -> Result<RecordingTelemetry, String> {
     let current_settings = settings.read().clone();
     let state = recorder.current_state();
-    
+
     Ok(RecordingTelemetry {
         state,
         elapsed_seconds: 0,

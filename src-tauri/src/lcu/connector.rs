@@ -29,15 +29,30 @@ impl LcuConnector {
         );
         sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
-        let target_names = ["LeagueClientUx.exe", "LeagueClientUx", "LeagueClient.exe", "LeagueClient"];
+        let target_names = [
+            "LeagueClientUx.exe",
+            "LeagueClientUx",
+            "LeagueClient.exe",
+            "LeagueClient",
+        ];
 
         for (pid, process) in sys.processes() {
             let proc_name = process.name().to_string_lossy();
-            if target_names.iter().any(|&target| proc_name.eq_ignore_ascii_case(target)) {
+            if target_names
+                .iter()
+                .any(|&target| proc_name.eq_ignore_ascii_case(target))
+            {
                 let cmd = process.cmd();
-                let full_cmd = cmd.iter().map(|s| s.to_string_lossy()).collect::<Vec<_>>().join(" ");
+                let full_cmd = cmd
+                    .iter()
+                    .map(|s| s.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join(" ");
 
-                debug!("Found potential LCU process {} (PID: {}): {}", proc_name, pid, full_cmd);
+                debug!(
+                    "Found potential LCU process {} (PID: {}): {}",
+                    proc_name, pid, full_cmd
+                );
 
                 let port_re = Regex::new(r#"--app-port=(\d+)"#).ok()?;
                 let token_re = Regex::new(r#"--remoting-auth-token=([\w-_]+)"#).ok()?;
@@ -45,7 +60,11 @@ impl LcuConnector {
                 let port: u16 = port_re.captures(&full_cmd)?.get(1)?.as_str().parse().ok()?;
                 let auth_token = token_re.captures(&full_cmd)?.get(1)?.as_str().to_string();
 
-                info!("Detected LCU client on port {} (PID: {})", port, pid.as_u32());
+                info!(
+                    "Detected LCU client on port {} (PID: {})",
+                    port,
+                    pid.as_u32()
+                );
                 return Some(LcuAuth {
                     process_name: proc_name.to_string(),
                     pid: pid.as_u32(),
@@ -76,8 +95,13 @@ impl LcuConnector {
                     // Lockfile format: process_name:pid:port:password:protocol
                     let parts: Vec<&str> = content.trim().split(':').collect();
                     if parts.len() >= 5 {
-                        if let (Ok(pid), Ok(port)) = (parts[1].parse::<u32>(), parts[2].parse::<u16>()) {
-                            info!("Detected LCU client from lockfile {:?} on port {}", path, port);
+                        if let (Ok(pid), Ok(port)) =
+                            (parts[1].parse::<u32>(), parts[2].parse::<u16>())
+                        {
+                            info!(
+                                "Detected LCU client from lockfile {:?} on port {}",
+                                path, port
+                            );
                             return Some(LcuAuth {
                                 process_name: parts[0].to_string(),
                                 pid,

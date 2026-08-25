@@ -1,7 +1,7 @@
 use crate::lcu::MatchMetadata;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tracing::{error, info};
+use tracing::info;
 
 pub struct MetadataWriter;
 
@@ -11,7 +11,8 @@ impl MetadataWriter {
         let json_path = mp4_path.with_extension("json");
         let json_data = serde_json::to_string_pretty(metadata).map_err(|e| e.to_string())?;
 
-        fs::write(&json_path, json_data).map_err(|e| format!("Failed to write metadata sidecar: {e}"))?;
+        fs::write(&json_path, json_data)
+            .map_err(|e| format!("Failed to write metadata sidecar: {e}"))?;
         info!("Written match metadata sidecar to {:?}", json_path);
         Ok(json_path)
     }

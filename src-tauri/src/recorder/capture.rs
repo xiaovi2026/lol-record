@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
-use tracing::{debug, error, info};
+use tracing::info;
 
 pub struct VideoFrame {
     pub width: u32,
@@ -37,14 +37,23 @@ impl ScreenCaptureEngine {
         self.is_running.store(true, Ordering::Relaxed);
         let is_running = self.is_running.clone();
 
-        info!("Starting Screen Capture Engine (Target: {}x{} @ {} FPS)", target_width, target_height, target_fps);
+        info!(
+            "Starting Screen Capture Engine (Target: {}x{} @ {} FPS)",
+            target_width, target_height, target_fps
+        );
 
         #[cfg(target_os = "windows")]
         {
             // Windows Graphics Capture (WGC) & DXGI Thread
             let handle_is_running = is_running.clone();
             std::thread::spawn(move || {
-                Self::run_windows_capture(handle_is_running, target_fps, target_width, target_height, frame_sender);
+                Self::run_windows_capture(
+                    handle_is_running,
+                    target_fps,
+                    target_width,
+                    target_height,
+                    frame_sender,
+                );
             });
         }
 
@@ -53,7 +62,13 @@ impl ScreenCaptureEngine {
             // Cross-platform / Mock capture loop for development & CI tests
             let handle_is_running = is_running.clone();
             std::thread::spawn(move || {
-                Self::run_mock_capture(handle_is_running, target_fps, target_width, target_height, frame_sender);
+                Self::run_mock_capture(
+                    handle_is_running,
+                    target_fps,
+                    target_width,
+                    target_height,
+                    frame_sender,
+                );
             });
         }
 
@@ -68,8 +83,8 @@ impl ScreenCaptureEngine {
         height: u32,
         sender: mpsc::Sender<VideoFrame>,
     ) {
-        use windows::Win32::UI::WindowsAndMessaging::{FindWindowA, GetWindowRect, RECT};
         use windows::core::PCSTR;
+        use windows::Win32::UI::WindowsAndMessaging::FindWindowA;
 
         let frame_duration = Duration::from_micros(1_000_000 / fps.max(1) as u64);
         let start_time = Instant::now();
@@ -82,9 +97,10 @@ impl ScreenCaptureEngine {
 
             // Locate League of Legends game window if present
             unsafe {
-                let window_title = std::ffi::CString::new("League of Legends (TM) Client").unwrap_or_default();
+                let window_title =
+                    std::ffi::CString::new("League of Legends (TM) Client").unwrap_or_default();
                 let hwnd = FindWindowA(PCSTR::null(), PCSTR(window_title.as_ptr() as _));
-                
+
                 // If game window exists, WGC or DXGI captures the DirectX swapchain surface
                 let _ = hwnd;
             }

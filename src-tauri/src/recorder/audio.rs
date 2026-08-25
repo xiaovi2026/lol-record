@@ -1,10 +1,10 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Device, Host, Stream};
+use cpal::{Host, Stream};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, warn};
+use tracing::{info, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -29,12 +29,18 @@ impl AudioSubsystem {
     /// Lists all available output (speakers/headphones) devices
     pub fn list_output_devices(&self) -> Vec<AudioDeviceInfo> {
         let mut devices = Vec::new();
-        let default_name = self.host.default_output_device().and_then(|d| d.name().ok());
+        let default_name = self
+            .host
+            .default_output_device()
+            .and_then(|d| d.name().ok());
 
         if let Ok(device_iter) = self.host.output_devices() {
             for d in device_iter {
                 if let Ok(name) = d.name() {
-                    let is_default = default_name.as_ref().map(|def| def == &name).unwrap_or(false);
+                    let is_default = default_name
+                        .as_ref()
+                        .map(|def| def == &name)
+                        .unwrap_or(false);
                     devices.push(AudioDeviceInfo {
                         id: name.clone(),
                         name,
@@ -55,7 +61,10 @@ impl AudioSubsystem {
         if let Ok(device_iter) = self.host.input_devices() {
             for d in device_iter {
                 if let Ok(name) = d.name() {
-                    let is_default = default_name.as_ref().map(|def| def == &name).unwrap_or(false);
+                    let is_default = default_name
+                        .as_ref()
+                        .map(|def| def == &name)
+                        .unwrap_or(false);
                     devices.push(AudioDeviceInfo {
                         id: name.clone(),
                         name,
@@ -80,11 +89,17 @@ impl AudioSubsystem {
     ) -> Result<AudioCaptureHandle, String> {
         let is_running = Arc::new(AtomicBool::new(true));
 
-        info!("Starting Audio Capture Session (Out Vol: {:.2}, In Vol: {:.2}, Mic: {})", output_volume, input_volume, record_mic);
+        info!(
+            "Starting Audio Capture Session (Out Vol: {:.2}, In Vol: {:.2}, Mic: {})",
+            output_volume, input_volume, record_mic
+        );
 
         // Find output device
         let out_device = if let Some(name) = output_device_name {
-            self.host.output_devices().ok().and_then(|mut iter| iter.find(|d| d.name().map(|n| n == name).unwrap_or(false)))
+            self.host
+                .output_devices()
+                .ok()
+                .and_then(|mut iter| iter.find(|d| d.name().map(|n| n == name).unwrap_or(false)))
                 .or_else(|| self.host.default_output_device())
         } else {
             self.host.default_output_device()
@@ -93,7 +108,12 @@ impl AudioSubsystem {
         // Find input device
         let in_device = if record_mic {
             if let Some(name) = input_device_name {
-                self.host.input_devices().ok().and_then(|mut iter| iter.find(|d| d.name().map(|n| n == name).unwrap_or(false)))
+                self.host
+                    .input_devices()
+                    .ok()
+                    .and_then(|mut iter| {
+                        iter.find(|d| d.name().map(|n| n == name).unwrap_or(false))
+                    })
                     .or_else(|| self.host.default_input_device())
             } else {
                 self.host.default_input_device()
@@ -115,7 +135,9 @@ impl AudioSubsystem {
                     cpal::SampleFormat::F32 => device.build_input_stream(
                         &config.into(),
                         move |data: &[f32], _: &_| {
-                            if !is_run.load(Ordering::Relaxed) { return; }
+                            if !is_run.load(Ordering::Relaxed) {
+                                return;
+                            }
                             let processed: Vec<f32> = data.iter().map(|&s| s * vol).collect();
                             let _ = tx.try_send(processed);
                         },
@@ -125,8 +147,11 @@ impl AudioSubsystem {
                     cpal::SampleFormat::I16 => device.build_input_stream(
                         &config.into(),
                         move |data: &[i16], _: &_| {
-                            if !is_run.load(Ordering::Relaxed) { return; }
-                            let processed: Vec<f32> = data.iter().map(|&s| (s as f32 / 32768.0) * vol).collect();
+                            if !is_run.load(Ordering::Relaxed) {
+                                return;
+                            }
+                            let processed: Vec<f32> =
+                                data.iter().map(|&s| (s as f32 / 32768.0) * vol).collect();
                             let _ = tx.try_send(processed);
                         },
                         |err| warn!("Audio output loopback stream error: {err}"),
@@ -155,7 +180,9 @@ impl AudioSubsystem {
                     cpal::SampleFormat::F32 => device.build_input_stream(
                         &config.into(),
                         move |data: &[f32], _: &_| {
-                            if !is_run.load(Ordering::Relaxed) { return; }
+                            if !is_run.load(Ordering::Relaxed) {
+                                return;
+                            }
                             let processed: Vec<f32> = data.iter().map(|&s| s * vol).collect();
                             let _ = tx.try_send(processed);
                         },
@@ -165,8 +192,11 @@ impl AudioSubsystem {
                     cpal::SampleFormat::I16 => device.build_input_stream(
                         &config.into(),
                         move |data: &[i16], _: &_| {
-                            if !is_run.load(Ordering::Relaxed) { return; }
-                            let processed: Vec<f32> = data.iter().map(|&s| (s as f32 / 32768.0) * vol).collect();
+                            if !is_run.load(Ordering::Relaxed) {
+                                return;
+                            }
+                            let processed: Vec<f32> =
+                                data.iter().map(|&s| (s as f32 / 32768.0) * vol).collect();
                             let _ = tx.try_send(processed);
                         },
                         |err| warn!("Microphone stream error: {err}"),

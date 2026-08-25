@@ -1,6 +1,6 @@
 use super::models::{CurrentSummoner, GameflowPhase, LcuAuth};
 use futures_util::{SinkExt, StreamExt};
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
+use reqwest::header::AUTHORIZATION;
 use serde_json::Value;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -81,7 +81,10 @@ impl LcuClient {
             .await
             .map_err(|e| e.to_string())?;
 
-        let summoner = res.json::<CurrentSummoner>().await.map_err(|e| e.to_string())?;
+        let summoner = res
+            .json::<CurrentSummoner>()
+            .await
+            .map_err(|e| e.to_string())?;
         Ok(summoner)
     }
 
@@ -164,14 +167,21 @@ impl LcuClient {
 
             let tls_connector = connector.map(tokio_tungstenite::Connector::NativeTls);
 
-            match tokio_tungstenite::connect_async_tls_with_config(req, None, false, tls_connector).await {
+            match tokio_tungstenite::connect_async_tls_with_config(req, None, false, tls_connector)
+                .await
+            {
                 Ok((mut ws_stream, _)) => {
                     info!("LCU WebSocket connected successfully!");
                     self.is_connected.store(true, Ordering::Relaxed);
 
                     // Subscribe to gameflow phase events (WAMP 1.0 JSON format: [5, event_name])
-                    let subscribe_msg = serde_json::json!([5, "OnJsonApiEvent_lol-gameflow/v1/gameflow-phase"]).to_string();
-                    if let Err(e) = ws_stream.send(tokio_tungstenite::tungstenite::Message::Text(subscribe_msg)).await {
+                    let subscribe_msg =
+                        serde_json::json!([5, "OnJsonApiEvent_lol-gameflow/v1/gameflow-phase"])
+                            .to_string();
+                    if let Err(e) = ws_stream
+                        .send(tokio_tungstenite::tungstenite::Message::Text(subscribe_msg))
+                        .await
+                    {
                         error!("Failed to subscribe to gameflow events: {e}");
                     }
 

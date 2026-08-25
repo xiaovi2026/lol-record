@@ -73,7 +73,10 @@ impl LcuAuth {
     pub fn basic_auth_header(&self) -> String {
         let auth_str = format!("riot:{}", self.auth_token);
         use base64::Engine;
-        format!("Basic {}", base64::engine::general_purpose::STANDARD.encode(auth_str))
+        format!(
+            "Basic {}",
+            base64::engine::general_purpose::STANDARD.encode(auth_str)
+        )
     }
 }
 
@@ -147,11 +150,23 @@ mod tests {
 
     #[test]
     fn test_gameflow_phase_parsing() {
-        assert_eq!(GameflowPhase::from("\"InProgress\""), GameflowPhase::InProgress);
-        assert_eq!(GameflowPhase::from("ChampSelect"), GameflowPhase::ChampSelect);
+        assert_eq!(
+            GameflowPhase::from("\"InProgress\""),
+            GameflowPhase::InProgress
+        );
+        assert_eq!(
+            GameflowPhase::from("ChampSelect"),
+            GameflowPhase::ChampSelect
+        );
         assert_eq!(GameflowPhase::from("EndOfGame"), GameflowPhase::EndOfGame);
-        assert_eq!(GameflowPhase::from("WaitingForStats"), GameflowPhase::WaitingForStats);
-        assert_eq!(GameflowPhase::from("CustomPhase"), GameflowPhase::Unknown("CustomPhase".to_string()));
+        assert_eq!(
+            GameflowPhase::from("WaitingForStats"),
+            GameflowPhase::WaitingForStats
+        );
+        assert_eq!(
+            GameflowPhase::from("CustomPhase"),
+            GameflowPhase::Unknown("CustomPhase".to_string())
+        );
     }
 
     #[test]

@@ -173,7 +173,8 @@ impl AppSettings {
     pub fn ensure_output_dir(&self) -> Result<PathBuf, String> {
         let path = Path::new(&self.storage.output_dir);
         if !path.exists() {
-            fs::create_dir_all(path).map_err(|e| format!("Failed to create output directory: {e}"))?;
+            fs::create_dir_all(path)
+                .map_err(|e| format!("Failed to create output directory: {e}"))?;
         }
         Ok(path.to_path_buf())
     }

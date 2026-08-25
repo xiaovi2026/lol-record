@@ -3,9 +3,9 @@ use crate::exporter::metadata::MetadataWriter;
 use crate::lcu::MatchMetadata;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::SystemTime;
-use tracing::{info, warn};
+use tracing::info;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -41,7 +41,10 @@ impl StorageManager {
             for entry in entries.flatten() {
                 let entry_path = entry.path();
                 if entry_path.is_file() {
-                    let ext = entry_path.extension().and_then(|e| e.to_str()).unwrap_or_default();
+                    let ext = entry_path
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or_default();
                     if ext.eq_ignore_ascii_case("mp4") {
                         let file_size = entry.metadata().map(|m| m.len()).unwrap_or(0);
                         let modified_time = entry
@@ -56,7 +59,11 @@ impl StorageManager {
 
                         items.push(RecordingItem {
                             file_path: entry_path.to_string_lossy().to_string(),
-                            file_name: entry_path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                            file_name: entry_path
+                                .file_name()
+                                .unwrap_or_default()
+                                .to_string_lossy()
+                                .to_string(),
                             file_size_bytes: file_size,
                             modified_time,
                             metadata,
@@ -119,7 +126,8 @@ impl StorageManager {
         recordings.sort_by(|a, b| a.modified_time.cmp(&b.modified_time));
 
         for item in recordings {
-            let is_expired = settings.storage.retention_days > 0 && (now_sec - item.modified_time) > retention_sec;
+            let is_expired = settings.storage.retention_days > 0
+                && (now_sec - item.modified_time) > retention_sec;
             let is_over_quota = total_bytes > max_quota;
 
             if is_expired || is_over_quota {

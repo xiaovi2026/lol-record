@@ -3,7 +3,6 @@ use crate::exporter::{RecordingItem, StorageManager, StorageUsage};
 use std::path::Path;
 use std::sync::Arc;
 use tauri::State;
-use tracing::info;
 
 #[tauri::command]
 pub fn get_recordings(

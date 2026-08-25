@@ -1,4 +1,6 @@
-use crate::lcu::{CurrentSummoner, GameflowPhase, HighlightMarker, LcuAuth, LcuClient, LiveClientPoller};
+use crate::lcu::{
+    CurrentSummoner, GameflowPhase, HighlightMarker, LcuAuth, LcuClient, LiveClientPoller,
+};
 use serde::Serialize;
 use std::sync::Arc;
 use tauri::State;
@@ -13,13 +15,15 @@ pub struct LcuStatusDto {
 }
 
 #[tauri::command]
-pub async fn get_lcu_status(
-    lcu_client: State<'_, Arc<LcuClient>>,
-) -> Result<LcuStatusDto, String> {
+pub async fn get_lcu_status(lcu_client: State<'_, Arc<LcuClient>>) -> Result<LcuStatusDto, String> {
     let is_connected = lcu_client.is_connected();
     let auth = lcu_client.current_auth();
     let phase = if is_connected {
-        lcu_client.get_gameflow_phase().await.unwrap_or(GameflowPhase::None).to_string()
+        lcu_client
+            .get_gameflow_phase()
+            .await
+            .unwrap_or(GameflowPhase::None)
+            .to_string()
     } else {
         "None".to_string()
     };

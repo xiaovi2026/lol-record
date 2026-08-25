@@ -45,8 +45,10 @@ impl HardwareDetector {
         let mut qsv = false;
 
         // Use windows crate DXGI factory to inspect adapter
-        use windows::Win32::Graphics::Dxgi::{CreateDXGIFactory1, IDXGIFactory1, DXGI_ADAPTER_DESC1};
-        
+        use windows::Win32::Graphics::Dxgi::{
+            CreateDXGIFactory1, IDXGIFactory1, DXGI_ADAPTER_DESC1,
+        };
+
         unsafe {
             if let Ok(factory) = CreateDXGIFactory1::<IDXGIFactory1>() {
                 if let Ok(adapter) = factory.EnumAdapters1(0) {
@@ -57,13 +59,21 @@ impl HardwareDetector {
                         name = clean_desc.clone();
 
                         let desc_lower = clean_desc.to_lowercase();
-                        if desc_lower.contains("nvidia") || desc_lower.contains("geforce") || desc_lower.contains("rtx") || desc_lower.contains("gtx") {
+                        if desc_lower.contains("nvidia")
+                            || desc_lower.contains("geforce")
+                            || desc_lower.contains("rtx")
+                            || desc_lower.contains("gtx")
+                        {
                             vendor = "NVIDIA".to_string();
                             nvenc = true;
                         } else if desc_lower.contains("amd") || desc_lower.contains("radeon") {
                             vendor = "AMD".to_string();
                             amf = true;
-                        } else if desc_lower.contains("intel") || desc_lower.contains("arc") || desc_lower.contains("iris") || desc_lower.contains("uhd") {
+                        } else if desc_lower.contains("intel")
+                            || desc_lower.contains("arc")
+                            || desc_lower.contains("iris")
+                            || desc_lower.contains("uhd")
+                        {
                             vendor = "Intel".to_string();
                             qsv = true;
                         }
@@ -74,11 +84,20 @@ impl HardwareDetector {
 
         let mut supported_codecs = vec!["h264".to_string(), "hevc".to_string()];
         // Modern GPUs support AV1 encoding (RTX 40 series, RX 7000 series, Intel Arc)
-        if name.contains("40") || name.contains("7900") || name.contains("7800") || name.contains("7700") || name.contains("7600") || name.contains("Arc") {
+        if name.contains("40")
+            || name.contains("7900")
+            || name.contains("7800")
+            || name.contains("7700")
+            || name.contains("7600")
+            || name.contains("Arc")
+        {
             supported_codecs.push("av1".to_string());
         }
 
-        info!("Detected GPU: {} (Vendor: {}, NVENC: {}, AMF: {}, QSV: {})", name, vendor, nvenc, amf, qsv);
+        info!(
+            "Detected GPU: {} (Vendor: {}, NVENC: {}, AMF: {}, QSV: {})",
+            name, vendor, nvenc, amf, qsv
+        );
 
         GpuEncoderInfo {
             name,

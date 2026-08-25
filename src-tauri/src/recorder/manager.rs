@@ -3,12 +3,12 @@ use super::capture::{CaptureHandle, ScreenCaptureEngine, VideoFrame};
 use super::encoder::{EncoderHandle, MediaEncoder, MediaEncoderConfig};
 use crate::config::AppSettings;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::{broadcast, mpsc, Mutex};
-use tracing::{error, info, warn};
+use tracing::info;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RecordingState {
@@ -70,7 +70,11 @@ impl RecorderManager {
     }
 
     /// Starts a recording session
-    pub async fn start_recording(&self, settings: &AppSettings, custom_output: Option<PathBuf>) -> Result<PathBuf, String> {
+    pub async fn start_recording(
+        &self,
+        settings: &AppSettings,
+        custom_output: Option<PathBuf>,
+    ) -> Result<PathBuf, String> {
         let mut session_guard = self.active_session.lock().await;
         if session_guard.is_some() {
             return Err("Recording session is already active".to_string());
@@ -104,15 +108,14 @@ impl RecorderManager {
             encoder: settings.video.encoder.clone(),
         };
 
-        let encoder_handle = self.encoder.start_encoding(enc_config, video_rx, audio_rx)?;
+        let encoder_handle = self
+            .encoder
+            .start_encoding(enc_config, video_rx, audio_rx)?;
 
         // 2. Start Capture
-        let capture_handle = self.capture_engine.start_capture(
-            settings.video.fps,
-            target_w,
-            target_h,
-            video_tx,
-        )?;
+        let capture_handle =
+            self.capture_engine
+                .start_capture(settings.video.fps, target_w, target_h, video_tx)?;
 
         // 3. Start Audio
         let audio_handle = self.audio_subsystem.start_capture_session(
@@ -139,7 +142,9 @@ impl RecorderManager {
     /// Stops the recording session and returns the path to the recorded video
     pub async fn stop_recording(&self) -> Result<PathBuf, String> {
         let mut session_guard = self.active_session.lock().await;
-        let session = session_guard.take().ok_or("No active recording session to stop")?;
+        let session = session_guard
+            .take()
+            .ok_or("No active recording session to stop")?;
 
         *self.state.write() = RecordingState::Finalizing;
 
@@ -152,7 +157,10 @@ impl RecorderManager {
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
         *self.state.write() = RecordingState::Idle;
-        info!("Recording stopped. File saved at {:?}", session.temp_file_path);
+        info!(
+            "Recording stopped. File saved at {:?}",
+            session.temp_file_path
+        );
 
         Ok(session.temp_file_path)
     }

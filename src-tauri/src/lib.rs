@@ -12,8 +12,8 @@ use recorder::RecorderManager;
 use std::sync::Arc;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Manager, WindowEvent};
-use tracing::{error, info, warn};
+use tauri::{Manager, WindowEvent};
+use tracing::{error, info};
 
 pub fn run() {
     tracing_subscriber::fmt()
@@ -80,7 +80,8 @@ pub fn run() {
 
             // Setup System Tray
             let show_item = MenuItem::with_id(app, "show", "打开主面板", true, None::<&str>)?;
-            let folder_item = MenuItem::with_id(app, "folder", "打开录像文件夹", true, None::<&str>)?;
+            let folder_item =
+                MenuItem::with_id(app, "folder", "打开录像文件夹", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_item, &folder_item, &quit_item])?;
 
@@ -237,7 +238,10 @@ async fn handle_auto_export(
     live: &LiveClientPoller,
     start_time: chrono::DateTime<chrono::Local>,
 ) {
-    info!("Starting auto-export and metadata processing for {:?}", temp_path);
+    info!(
+        "Starting auto-export and metadata processing for {:?}",
+        temp_path
+    );
 
     // Wait briefly for LCU end-of-game stats block to be ready
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
@@ -274,16 +278,32 @@ async fn handle_auto_export(
             metadata.queue_name = q_name.to_string();
         }
         if let Some(local_player) = stats.get("localPlayer") {
-            if let Some(k) = local_player.get("stats").and_then(|s| s.get("CHAMPIONS_KILLED")).and_then(|v| v.as_i64()) {
+            if let Some(k) = local_player
+                .get("stats")
+                .and_then(|s| s.get("CHAMPIONS_KILLED"))
+                .and_then(|v| v.as_i64())
+            {
                 metadata.kills = k as i32;
             }
-            if let Some(d) = local_player.get("stats").and_then(|s| s.get("NUM_DEATHS")).and_then(|v| v.as_i64()) {
+            if let Some(d) = local_player
+                .get("stats")
+                .and_then(|s| s.get("NUM_DEATHS"))
+                .and_then(|v| v.as_i64())
+            {
                 metadata.deaths = d as i32;
             }
-            if let Some(a) = local_player.get("stats").and_then(|s| s.get("ASSISTS")).and_then(|v| v.as_i64()) {
+            if let Some(a) = local_player
+                .get("stats")
+                .and_then(|s| s.get("ASSISTS"))
+                .and_then(|v| v.as_i64())
+            {
                 metadata.assists = a as i32;
             }
-            if let Some(win) = local_player.get("stats").and_then(|s| s.get("WIN")).and_then(|v| v.as_bool()) {
+            if let Some(win) = local_player
+                .get("stats")
+                .and_then(|s| s.get("WIN"))
+                .and_then(|v| v.as_bool())
+            {
                 metadata.win = win;
             }
             if let Some(champ) = local_player.get("championName").and_then(|v| v.as_str()) {
@@ -293,11 +313,17 @@ async fn handle_auto_export(
     }
 
     let final_filename = NamingFormatter::format(&settings.storage.filename_template, &metadata);
-    let final_path = temp_path.parent().unwrap_or(&temp_path).join(final_filename);
+    let final_path = temp_path
+        .parent()
+        .unwrap_or(&temp_path)
+        .join(final_filename);
 
     // Rename temp file to final exported name
     if let Err(e) = std::fs::rename(&temp_path, &final_path) {
-        error!("Failed to rename temp file {:?} to {:?}: {e}", temp_path, final_path);
+        error!(
+            "Failed to rename temp file {:?} to {:?}: {e}",
+            temp_path, final_path
+        );
     } else {
         info!("Exported match recording to {:?}", final_path);
         let _ = MetadataWriter::write_sidecar(&final_path, &metadata);

@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::info;
 
 pub struct LiveClientPoller {
     http_client: reqwest::Client,
@@ -37,7 +37,10 @@ impl LiveClientPoller {
     }
 
     /// Polls Live Client API on port 2999 for match events
-    pub async fn poll_events(&self, current_player_name: Option<&str>) -> Result<Vec<HighlightMarker>, String> {
+    pub async fn poll_events(
+        &self,
+        current_player_name: Option<&str>,
+    ) -> Result<Vec<HighlightMarker>, String> {
         let url = "https://127.0.0.1:2999/liveclientdata/eventdata";
 
         let res = match self.http_client.get(url).send().await {
@@ -53,8 +56,10 @@ impl LiveClientPoller {
         if let Some(event_list) = events {
             for item in event_list {
                 if let Ok(event) = serde_json::from_value::<LiveEventData>(item.clone()) {
-                    let event_id = event.event_id.unwrap_or_else(|| (event.event_time * 100.0) as i32);
-                    
+                    let event_id = event
+                        .event_id
+                        .unwrap_or_else(|| (event.event_time * 100.0) as i32);
+
                     let mut processed = self.processed_event_ids.write().await;
                     if processed.contains(&event_id) {
                         continue;
@@ -62,7 +67,10 @@ impl LiveClientPoller {
                     processed.insert(event_id);
 
                     if let Some(marker) = Self::parse_event_marker(&event, current_player_name) {
-                        info!("Match Highlight Detected: {} at {:.1}s", marker.description, marker.timestamp_sec);
+                        info!(
+                            "Match Highlight Detected: {} at {:.1}s",
+                            marker.description, marker.timestamp_sec
+                        );
                         new_highlights.push(marker.clone());
                         self.highlights.write().await.push(marker);
                     }
@@ -73,7 +81,10 @@ impl LiveClientPoller {
         Ok(new_highlights)
     }
 
-    fn parse_event_marker(event: &LiveEventData, current_player: Option<&str>) -> Option<HighlightMarker> {
+    fn parse_event_marker(
+        event: &LiveEventData,
+        current_player: Option<&str>,
+    ) -> Option<HighlightMarker> {
         let is_me = |name: &Option<String>| {
             if let (Some(me), Some(n)) = (current_player, name) {
                 me.eq_ignore_ascii_case(n)
@@ -126,7 +137,10 @@ impl LiveClientPoller {
                 timestamp_sec: event.event_time,
                 event_name: event.event_name.clone(),
                 event_type: "Baron".to_string(),
-                description: format!("Baron Nashor secured by {}", event.killer_name.as_deref().unwrap_or("Team")),
+                description: format!(
+                    "Baron Nashor secured by {}",
+                    event.killer_name.as_deref().unwrap_or("Team")
+                ),
                 killer_name: event.killer_name.clone(),
                 victim_name: None,
             }),
@@ -134,7 +148,11 @@ impl LiveClientPoller {
                 timestamp_sec: event.event_time,
                 event_name: event.event_name.clone(),
                 event_type: "Dragon".to_string(),
-                description: format!("{} Dragon secured by {}", event.dragon_type.as_deref().unwrap_or("Elemental"), event.killer_name.as_deref().unwrap_or("Team")),
+                description: format!(
+                    "{} Dragon secured by {}",
+                    event.dragon_type.as_deref().unwrap_or("Elemental"),
+                    event.killer_name.as_deref().unwrap_or("Team")
+                ),
                 killer_name: event.killer_name.clone(),
                 victim_name: None,
             }),
@@ -142,7 +160,10 @@ impl LiveClientPoller {
                 timestamp_sec: event.event_time,
                 event_name: event.event_name.clone(),
                 event_type: "Ace".to_string(),
-                description: format!("ACE! Secured by {}", event.acer.as_deref().unwrap_or("Team")),
+                description: format!(
+                    "ACE! Secured by {}",
+                    event.acer.as_deref().unwrap_or("Team")
+                ),
                 killer_name: event.acer.clone(),
                 victim_name: None,
             }),
