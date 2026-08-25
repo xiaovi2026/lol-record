@@ -1,0 +1,48 @@
+[package]
+name = "lol-record"
+version = "0.1.0"
+description = "Seamless LoL Match Auto-Recording and Exporting System"
+edition = "2021"
+
+[dependencies]
+tauri = { version = "2.0.0", features = ["tray-icon"] }
+tauri-plugin-autostart = "2.0.0"
+tauri-plugin-single-instance = "2.0.0"
+tauri-plugin-notification = "2.0.0"
+tauri-plugin-shell = "2.0.0"
+tauri-plugin-dialog = "2.0.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.38", features = ["full"] }
+tokio-tungstenite = { version = "0.23", features = ["native-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls", "stream"] }
+sysinfo = "0.31"
+cpal = "0.15"
+rubato = "0.15"
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+base64 = "0.22"
+directories = "5.0"
+thiserror = "1.0"
+parking_lot = "0.12"
+regex = "1.10"
+uuid = { version = "1.8", features = ["v4", "serde"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Dxgi",
+    "Win32_Media_MediaFoundation",
+    "Win32_Media_Audio",
+    "Win32_System_Com",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+    "Graphics_Capture",
+    "Storage_Streams"
+] }
+
+[build-dependencies]
+tauri-build = { version = "2.0.0", features = [] }

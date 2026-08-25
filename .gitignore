@@ -1,0 +1,36 @@
+# Node & Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.npm
+.pnpm-debug.log*
+.eslintcache
+
+# Rust & Tauri
+/src-tauri/target/
+/src-tauri/gen/
+**/*.rs.bk
+
+# Operating System & IDEs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Output Recordings & Temporary Media
+/recordings/
+*.mp4
+*.mkv
+*.webm
+*.tmp
+
+# Environment Variables
+.env
+.env.*
+!.env.example
