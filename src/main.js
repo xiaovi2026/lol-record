@@ -39,6 +39,10 @@ async function loadAudioDevices() {
   try {
     const devices = await invoke("get_audio_devices");
     
+    // Remember current user values before replacing options
+    const currentOutput = audioOutputSelect.value || localStorage.getItem("audioOutput") || "Default";
+    const currentInput = audioInputSelect.value || localStorage.getItem("audioInput") || "None";
+    
     // Clear previous dynamic options (keep default/none)
     audioOutputSelect.innerHTML = '<option value="Default">系统默认输出</option><option value="None">不录制系统音</option>';
     audioInputSelect.innerHTML = '<option value="None">不录制麦克风</option><option value="Default">系统默认输入</option>';
@@ -59,10 +63,18 @@ async function loadAudioDevices() {
       audioInputSelect.appendChild(opt);
     });
     
-    // Restore settings
-    const settings = getSettings();
-    audioOutputSelect.value = settings.audioOutput;
-    audioInputSelect.value = settings.audioInput;
+    // Restore selections if they exist in the new options list
+    if ([...audioOutputSelect.options].some(o => o.value === currentOutput)) {
+      audioOutputSelect.value = currentOutput;
+    } else {
+      audioOutputSelect.value = "Default";
+    }
+    
+    if ([...audioInputSelect.options].some(o => o.value === currentInput)) {
+      audioInputSelect.value = currentInput;
+    } else {
+      audioInputSelect.value = "None";
+    }
   } catch (err) {
     console.error("Failed to load audio devices:", err);
   }
@@ -153,6 +165,23 @@ function updateRecordingUI(recording, filename = "") {
     btnStopRecord.disabled = true;
     document.getElementById("record-details").style.display = "none";
   }
+  
+  // Disable / Enable settings panel changes depending on recording state
+  const settingsFields = [
+    saveDirInput,
+    document.getElementById("btn-select-dir"),
+    document.getElementById("btn-open-dir"),
+    videoResSelect,
+    videoBitrateSelect,
+    audioOutputSelect,
+    audioInputSelect,
+    autostartToggle
+  ];
+  settingsFields.forEach(field => {
+    if (field) {
+      field.disabled = recording;
+    }
+  });
 }
 
 // Start Recording Action
@@ -299,6 +328,11 @@ function setupTabs() {
       button.classList.add("active");
       const tabId = "tab-" + button.getAttribute("data-tab");
       document.getElementById(tabId).classList.add("active");
+      
+      // Auto-refresh audio devices when switching to the settings tab
+      if (button.getAttribute("data-tab") === "settings") {
+        loadAudioDevices();
+      }
     });
   });
 }
@@ -321,6 +355,23 @@ async function setupAutostart(enableFlag) {
   } catch (err) {
     console.error("Autostart error:", err);
   }
+}
+
+// Auto-save Settings Action
+async function autoSaveSettings() {
+  // If currently recording, do not allow saving settings
+  if (isRecording) return;
+  
+  const newSettings = {
+    saveDir: saveDirInput.value,
+    resolution: videoResSelect.value,
+    bitrate: parseInt(videoBitrateSelect.value),
+    audioOutput: audioOutputSelect.value,
+    audioInput: audioInputSelect.value,
+    autostart: autostartToggle.checked,
+  };
+  saveSettings(newSettings);
+  await setupAutostart(newSettings.autostart);
 }
 
 // Initialization on DOM load
@@ -357,21 +408,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Setup Autostart status on startup
   setTimeout(() => setupAutostart(settings.autostart), 1000);
 
-  // Form submit handler
-  document.getElementById("settings-form").addEventListener("submit", async (e) => {
+  // Prevent settings form from submitting on enter key
+  document.getElementById("settings-form").addEventListener("submit", (e) => {
     e.preventDefault();
-    const newSettings = {
-      saveDir: saveDirInput.value,
-      resolution: videoResSelect.value,
-      bitrate: parseInt(videoBitrateSelect.value),
-      audioOutput: audioOutputSelect.value,
-      audioInput: audioInputSelect.value,
-      autostart: autostartToggle.checked,
-    };
-    saveSettings(newSettings);
-    await setupAutostart(newSettings.autostart);
-    alert("设置保存成功！");
   });
+  
+  // Attach auto-save event listeners on settings controls
+  saveDirInput.addEventListener("input", autoSaveSettings);
+  videoResSelect.addEventListener("change", autoSaveSettings);
+  videoBitrateSelect.addEventListener("change", autoSaveSettings);
+  audioOutputSelect.addEventListener("change", autoSaveSettings);
+  audioInputSelect.addEventListener("change", autoSaveSettings);
+  autostartToggle.addEventListener("change", autoSaveSettings);
   
   // Choose save directory button
   document.getElementById("btn-select-dir").addEventListener("click", async () => {
@@ -379,6 +427,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       const selected = await invoke("select_directory");
       if (selected) {
         saveDirInput.value = selected;
+        autoSaveSettings(); // Trigger autosave after directory select
       }
     } catch (err) {
       console.error("Failed to select directory:", err);
@@ -395,12 +444,6 @@ window.addEventListener("DOMContentLoaded", async () => {
         console.error("Failed to open directory:", err);
       }
     }
-  });
-  
-  // Refresh audio device list button
-  document.getElementById("btn-refresh-audio").addEventListener("click", async () => {
-    await loadAudioDevices();
-    alert("音频设备列表已刷新！");
   });
   
   // Manual actions
