@@ -80,12 +80,17 @@ async function loadAudioDevices() {
 async function checkLcuStatus() {
   try {
     const creds = await invoke("get_lcu_status");
+    const actualRecording = await invoke("get_recording_status");
     const indicator = document.getElementById("lcu-indicator");
     const lcuBadge = document.getElementById("lcu-badge");
     const lcuPlaceholder = document.getElementById("lcu-placeholder");
     const lcuDetails = document.getElementById("lcu-details");
-    const sidebarClientDot = document.getElementById("sidebar-client-dot");
-    const sidebarClientText = document.getElementById("sidebar-client-text");
+    
+    // Sync UI with actual backend recording state
+    if (!actualRecording && isRecording) {
+      console.log("Backend recording stopped, syncing UI...");
+      updateRecordingUI(false);
+    }
     
     if (creds) {
       lcuCredentials = creds;
@@ -96,8 +101,6 @@ async function checkLcuStatus() {
         lcuBadge.className = "badge badge-success";
         lcuBadge.textContent = "已连接";
       }
-      if (sidebarClientDot) sidebarClientDot.className = "status-dot dot-success";
-      if (sidebarClientText) sidebarClientText.textContent = `LOL大厅 (${creds.port})`;
       if (lcuPlaceholder) lcuPlaceholder.style.display = "none";
       if (lcuDetails) lcuDetails.style.display = "flex";
 
@@ -135,6 +138,15 @@ async function checkLcuStatus() {
           const cleanPhase = phase.replace(/"/g, "");
           const phaseEl = document.getElementById("game-phase");
           if (phaseEl) phaseEl.textContent = phaseTranslations[cleanPhase] || cleanPhase;
+          
+          // Auto start / stop sync based on gameflow phase
+          if (cleanPhase === "InProgress" && !isRecording && !actualRecording) {
+            console.log("Gameflow is InProgress, auto-starting recording...");
+            await startRecordingAction();
+          } else if (cleanPhase !== "InProgress" && (isRecording || actualRecording)) {
+            console.log("Gameflow phase changed to", cleanPhase, "auto-stopping recording...");
+            await stopRecordingAction();
+          }
         }
 
         const session = await invoke("request_lcu", { method: "GET", endpoint: "/lol-gameflow/v1/session" });
@@ -156,12 +168,16 @@ async function checkLcuStatus() {
         lcuBadge.className = "badge badge-danger";
         lcuBadge.textContent = "未连接";
       }
-      if (sidebarClientDot) sidebarClientDot.className = "status-dot dot-danger";
-      if (sidebarClientText) sidebarClientText.textContent = "客户端未连接";
       if (lcuPlaceholder) lcuPlaceholder.style.display = "flex";
       if (lcuDetails) lcuDetails.style.display = "none";
       const profileBox = document.getElementById("summoner-profile-box");
       if (profileBox) profileBox.style.display = "none";
+
+      // If client closed while recording, stop recording immediately
+      if (isRecording || actualRecording) {
+        console.log("LOL client disconnected, stopping recording...");
+        await stopRecordingAction();
+      }
     }
   } catch (err) {
     console.error(err);

@@ -74,6 +74,10 @@ pub struct ActiveSession {
 
 pub static ACTIVE_SESSION: Mutex<Option<ActiveSession>> = Mutex::new(None);
 
+pub fn is_recording_active() -> bool {
+    ACTIVE_SESSION.lock().unwrap().is_some()
+}
+
 pub fn start_recording(
     output_path: &str,
     width: u32,

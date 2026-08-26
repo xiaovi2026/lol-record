@@ -33,3 +33,15 @@ pub fn get_lcu_credentials() -> Option<LcuCredentials> {
     }
     None
 }
+
+pub fn is_game_process_running() -> bool {
+    let mut system = System::new_all();
+    system.refresh_processes();
+    for (_, process) in system.processes() {
+        let name = process.name().to_lowercase();
+        if name == "league of legends.exe" || name == "league of legends" || name.contains("league of legends") {
+            return true;
+        }
+    }
+    false
+}

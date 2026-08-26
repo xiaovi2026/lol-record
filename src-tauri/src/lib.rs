@@ -39,6 +39,11 @@ async fn start_manual_record(
 }
 
 #[tauri::command]
+async fn get_recording_status() -> bool {
+    record::is_recording_active()
+}
+
+#[tauri::command]
 async fn stop_manual_record() -> Result<String, String> {
     record::stop_recording()
 }
@@ -102,13 +107,16 @@ fn start_lcu_monitor(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let client = reqwest::Client::builder()
             .danger_accept_invalid_certs(true)
+            .timeout(std::time::Duration::from_secs(2))
             .build()
             .unwrap();
             
         let mut is_recording = false;
         
         while MONITORING_ACTIVE.load(Ordering::Relaxed) {
-            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            
+            let is_active_in_record = record::is_recording_active();
             
             if let Some(creds) = lcu::get_lcu_credentials() {
                 let url = format!("https://127.0.0.1:{}/lol-gameflow/v1/gameflow-phase", creds.port);
@@ -122,17 +130,32 @@ fn start_lcu_monitor(app: AppHandle) {
                         let clean_phase = phase.trim_matches('"');
                         let app_ref = app.clone();
                         
-                        if clean_phase == "InProgress" && !is_recording {
-                            let _ = app_ref.emit("lcu-game-start", ());
-                            is_recording = true;
-                        } else if clean_phase != "InProgress" && is_recording {
-                            let _ = app_ref.emit("lcu-game-end", ());
+                        if clean_phase == "InProgress" {
+                            if !is_recording && !is_active_in_record {
+                                let _ = app_ref.emit("lcu-game-start", ());
+                                is_recording = true;
+                            }
+                        } else {
+                            // Any phase other than InProgress (PreEndOfGame, EndOfGame, WaitingForStats, Lobby, None, ChampSelect, etc.)
+                            if is_recording || is_active_in_record {
+                                let _ = app_ref.emit("lcu-game-end", ());
+                                is_recording = false;
+                            }
+                        }
+                    }
+                } else {
+                    // API request failed/timed out: check if in-game process is dead
+                    if is_recording || is_active_in_record {
+                        if !lcu::is_game_process_running() {
+                            let _ = app.emit("lcu-game-end", ());
                             is_recording = false;
                         }
                     }
                 }
             } else {
-                if is_recording {
+                // Client closed completely
+                if is_recording || is_active_in_record {
+                    let _ = app.emit("lcu-game-end", ());
                     let _ = record::stop_recording();
                     is_recording = false;
                 }
@@ -206,6 +229,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_audio_devices,
             get_lcu_status,
+            get_recording_status,
             start_manual_record,
             stop_manual_record,
             request_lcu,
