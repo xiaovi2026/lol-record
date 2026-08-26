@@ -19,11 +19,11 @@ struct CaptureHandler {
 }
 
 impl GraphicsCaptureApiHandler for CaptureHandler {
-    type Flags = (String, u32, u32, u32); // (path, width, height, bitrate_mbps)
+    type Flags = (String, u32, u32, u32, Arc<Mutex<Option<VideoEncoder>>>);
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
     fn new(ctx: Context<Self::Flags>) -> Result<Self, Self::Error> {
-        let (path, width, height, bitrate_mbps) = ctx.flags;
+        let (path, width, height, bitrate_mbps, shared_encoder) = ctx.flags;
         
         let video_settings = VideoSettingsBuilder::new(width, height)
             .frame_rate(60)
@@ -33,9 +33,10 @@ impl GraphicsCaptureApiHandler for CaptureHandler {
         let container_settings = ContainerSettingsBuilder::default();
         
         let encoder = VideoEncoder::new(video_settings, audio_settings, container_settings, path)?;
+        *shared_encoder.lock().unwrap() = Some(encoder);
         
         Ok(Self {
-            encoder: Arc::new(Mutex::new(Some(encoder))),
+            encoder: shared_encoder,
         })
     }
 
@@ -52,7 +53,7 @@ impl GraphicsCaptureApiHandler for CaptureHandler {
 
     fn on_closed(&mut self) -> Result<(), Self::Error> {
         if let Some(enc) = self.encoder.lock().unwrap().take() {
-            enc.finish()?;
+            let _ = enc.finish();
         }
         Ok(())
     }
@@ -223,7 +224,7 @@ pub fn start_recording(
         MinimumUpdateIntervalSettings::Default,
         DirtyRegionSettings::Default,
         ColorFormat::Bgra8,
-        (output_path.to_string(), width, height, bitrate_mbps),
+        (output_path.to_string(), width, height, bitrate_mbps, encoder.clone()),
     );
     
     // Start capture without blocking the thread
@@ -232,7 +233,7 @@ pub fn start_recording(
         
     // Wait for the handler to populate the encoder in background thread
     let mut retries = 0;
-    while encoder.lock().unwrap().is_none() && retries < 20 {
+    while encoder.lock().unwrap().is_none() && retries < 40 {
         std::thread::sleep(std::time::Duration::from_millis(50));
         retries += 1;
     }
@@ -294,14 +295,14 @@ pub fn stop_recording() -> Result<String, String> {
             let _ = stream.0.pause();
         }
         
-        // Finalize the video encoder
-        if let Some(enc) = s.encoder.lock().unwrap().take() {
-            let _ = enc.finish();
-        }
-        
         // Stop screen capture
         if let Some(control) = s.capture_control.take() {
             let _ = control.stop();
+        }
+        
+        // Finalize the video encoder
+        if let Some(enc) = s.encoder.lock().unwrap().take() {
+            let _ = enc.finish();
         }
         
         // Generate events text file in background thread to avoid blocking UI
