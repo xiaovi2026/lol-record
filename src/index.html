@@ -1,39 +1,168 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="styles.css" />
+    <script src="main.js" defer></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri App</title>
-    <script type="module" src="/main.js" defer></script>
+    <title>LOL对局无感录像系统</title>
   </head>
 
   <body>
-    <main class="container">
-      <h1>Welcome to Tauri</h1>
+    <div class="app-container">
+      <!-- Sidebar Navigation -->
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="logo-icon"></div>
+          <h2>LoL Recorder</h2>
+        </div>
+        <nav class="nav-menu">
+          <button class="nav-item active" data-tab="dashboard">
+            <span class="icon">📊</span> 控制面板
+          </button>
+          <button class="nav-item" data-tab="settings">
+            <span class="icon">⚙️</span> 系统设置
+          </button>
+          <button class="nav-item" data-tab="records">
+            <span class="icon">🎬</span> 对局录像
+          </button>
+        </nav>
+        <div class="sidebar-footer">
+          <p>开机自启: <span id="autostart-status">已关闭</span></p>
+          <p class="version">v0.1.0 (Native WGC)</p>
+        </div>
+      </aside>
 
-      <div class="row">
-        <a href="https://tauri.app" target="_blank">
-          <img src="/assets/tauri.svg" class="logo tauri" alt="Tauri logo" />
-        </a>
-        <a
-          href="https://developer.mozilla.org/en-US/docs/Web/JavaScript"
-          target="_blank"
-        >
-          <img
-            src="/assets/javascript.svg"
-            class="logo vanilla"
-            alt="JavaScript logo"
-          />
-        </a>
-      </div>
-      <p>Click on the Tauri logo to learn more about the framework</p>
+      <!-- Main Content Area -->
+      <main class="main-content">
+        <!-- Dashboard Tab -->
+        <section id="tab-dashboard" class="tab-content active">
+          <header class="content-header">
+            <h1>系统监控与控制</h1>
+          </header>
 
-      <form class="row" id="greet-form">
-        <input id="greet-input" placeholder="Enter a name..." />
-        <button type="submit">Greet</button>
-      </form>
-      <p id="greet-msg"></p>
-    </main>
+          <div class="status-grid">
+            <div class="status-card" id="card-lcu">
+              <div class="card-icon">🎮</div>
+              <div class="card-details">
+                <h3>英雄联盟客户端 (LCU)</h3>
+                <p class="status-text text-danger" id="lcu-status-text">未检测到客户端运行</p>
+              </div>
+            </div>
+
+            <div class="status-card" id="card-record">
+              <div class="card-icon">🔴</div>
+              <div class="card-details">
+                <h3>录制状态</h3>
+                <p class="status-text text-gray" id="record-status-text">未开始录制</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-box">
+            <h2>手动控制录像</h2>
+            <p class="info-text">在未启动LOL游戏时，您也可以手动控制开始/结束录屏以进行系统测试。</p>
+            <div class="btn-group">
+              <button id="btn-start-record" class="btn btn-primary">手动开始录制</button>
+              <button id="btn-stop-record" class="btn btn-danger" disabled>停止录制并保存</button>
+            </div>
+          </div>
+
+          <div class="info-box" id="game-info-box" style="display: none;">
+            <h2>当前正在进行的对局</h2>
+            <div class="game-details">
+              <p>游戏模式: <strong id="game-mode">-</strong></p>
+              <p>对局阶段: <strong id="game-phase">-</strong></p>
+              <p>正在录制到: <code id="game-filepath">-</code></p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Settings Tab -->
+        <section id="tab-settings" class="tab-content">
+          <header class="content-header">
+            <h1>系统配置</h1>
+          </header>
+
+          <form id="settings-form" class="settings-form">
+            <div class="form-group">
+              <label for="save-dir">视频导出目录</label>
+              <div style="display: flex; gap: 10px;">
+                <input type="text" id="save-dir" placeholder="例如: C:\Videos\LoL-Records" style="flex: 1;" required />
+                <button type="button" id="btn-select-dir" class="btn btn-secondary" style="padding: 0 16px;">选择...</button>
+              </div>
+              <span class="help-text">录制的视频文件将自动保存至此文件夹下。</span>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="video-res">分辨率</label>
+                <select id="video-res">
+                  <option value="1920x1080">1920 x 1080 (1080P)</option>
+                  <option value="1280x720">1280 x 720 (720P)</option>
+                  <option value="2560x1440">2560 x 1440 (2K)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="video-bitrate">码率 (Mbps)</label>
+                <select id="video-bitrate">
+                  <option value="4">4 Mbps (中等画质)</option>
+                  <option value="6" selected>6 Mbps (推荐画质)</option>
+                  <option value="10">10 Mbps (超高画质)</option>
+                  <option value="16">16 Mbps (无损观感)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="audio-output">音频输出设备 (系统游戏音)</label>
+                <select id="audio-output">
+                  <option value="Default">系统默认输出</option>
+                  <option value="None">不录制系统音</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="audio-input">音频输入设备 (麦克风)</label>
+                <select id="audio-input">
+                  <option value="None">不录制麦克风</option>
+                  <option value="Default">系统默认输入</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="autostart-toggle" />
+              <label for="autostart-toggle">开机自动启动，并在系统托盘静默运行</label>
+            </div>
+
+            <div class="btn-group">
+              <button type="submit" class="btn btn-primary">保存设置</button>
+              <button type="button" id="btn-refresh-audio" class="btn btn-secondary">刷新音频设备列表</button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Records Tab -->
+        <section id="tab-records" class="tab-content">
+          <header class="content-header">
+            <h1>对局录像历史</h1>
+          </header>
+
+          <div class="records-container">
+            <div class="records-toolbar">
+              <button id="btn-open-folder" class="btn btn-secondary">打开录像目录</button>
+              <button id="btn-clear-history" class="btn btn-danger-outline">清空历史记录</button>
+            </div>
+
+            <div class="records-list" id="records-list">
+              <div class="no-records">暂无录像记录，开始一场游戏吧！</div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
   </body>
 </html>
