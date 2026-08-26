@@ -13,7 +13,7 @@
         "title": "lol-record",
         "width": 850,
         "height": 650,
-        "resizable": false,
+        "resizable": true,
         "skipTaskbar": true,
         "visible": false
       }

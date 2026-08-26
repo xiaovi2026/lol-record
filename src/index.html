@@ -23,13 +23,10 @@
           <button class="nav-item" data-tab="settings">
             <span class="icon">⚙️</span> 系统设置
           </button>
-          <button class="nav-item" data-tab="records">
-            <span class="icon">🎬</span> 对局录像
-          </button>
         </nav>
         <div class="sidebar-footer">
           <p>开机自启: <span id="autostart-status">已关闭</span></p>
-          <p class="version">v0.2.1 (Native WGC)</p>
+          <p class="version">v0.2.1</p>
         </div>
       </aside>
 
@@ -37,10 +34,6 @@
       <main class="main-content">
         <!-- Dashboard Tab -->
         <section id="tab-dashboard" class="tab-content active">
-          <header class="content-header">
-            <h1>系统监控与控制</h1>
-          </header>
-
           <div class="status-grid">
             <div class="status-card" id="card-lcu">
               <div class="card-icon">🎮</div>
@@ -80,16 +73,13 @@
 
         <!-- Settings Tab -->
         <section id="tab-settings" class="tab-content">
-          <header class="content-header">
-            <h1>系统配置</h1>
-          </header>
-
           <form id="settings-form" class="settings-form">
             <div class="form-group">
               <label for="save-dir">视频导出目录</label>
-              <div style="display: flex; gap: 10px;">
+              <div style="display: flex; gap: 8px;">
                 <input type="text" id="save-dir" placeholder="例如: C:\Videos\LoL-Records" style="flex: 1;" required />
-                <button type="button" id="btn-select-dir" class="btn btn-secondary" style="padding: 0 16px;">选择...</button>
+                <button type="button" id="btn-select-dir" class="btn btn-secondary" title="选择目录" style="padding: 10px 14px;">📁</button>
+                <button type="button" id="btn-open-dir" class="btn btn-secondary" title="打开目录" style="padding: 10px 14px;">📂</button>
               </div>
               <span class="help-text">录制的视频文件将自动保存至此文件夹下。</span>
             </div>
@@ -143,24 +133,6 @@
               <button type="button" id="btn-refresh-audio" class="btn btn-secondary">刷新音频设备列表</button>
             </div>
           </form>
-        </section>
-
-        <!-- Records Tab -->
-        <section id="tab-records" class="tab-content">
-          <header class="content-header">
-            <h1>对局录像历史</h1>
-          </header>
-
-          <div class="records-container">
-            <div class="records-toolbar">
-              <button id="btn-open-folder" class="btn btn-secondary">打开录像目录</button>
-              <button id="btn-clear-history" class="btn btn-danger-outline">清空历史记录</button>
-            </div>
-
-            <div class="records-list" id="records-list">
-              <div class="no-records">暂无录像记录，开始一场游戏吧！</div>
-            </div>
-          </div>
         </section>
       </main>
     </div>

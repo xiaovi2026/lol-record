@@ -11,7 +11,6 @@ let lcuStatusText, recordStatusText;
 let btnStartRecord, btnStopRecord;
 let saveDirInput, videoResSelect, videoBitrateSelect;
 let audioOutputSelect, audioInputSelect, autostartToggle;
-let recordsList;
 
 // Load config from localStorage or default
 function getSettings() {
@@ -25,6 +24,7 @@ function getSettings() {
   };
 }
 
+// Save config
 function saveSettings(settings) {
   localStorage.setItem("saveDir", settings.saveDir);
   localStorage.setItem("resolution", settings.resolution);
@@ -223,7 +223,7 @@ async function handleMatchRenameAndHistory(filePath) {
     }
   }
   
-  // Add to local history list
+  // Add to local history list in localStorage
   const history = JSON.parse(localStorage.getItem("historyRecords") || "[]");
   history.unshift({
     name: recordName,
@@ -234,7 +234,6 @@ async function handleMatchRenameAndHistory(filePath) {
     win: metadata?.win,
   });
   localStorage.setItem("historyRecords", JSON.stringify(history));
-  renderHistory();
 }
 
 // Path Helpers
@@ -242,46 +241,9 @@ function PathGetFileName(path) {
   return path.substring(path.lastIndexOf("\\") + 1);
 }
 
+// Directory Helpers
 function PathGetDirectoryName(path) {
   return path.substring(0, path.lastIndexOf("\\"));
-}
-
-// Render recording list
-function renderHistory() {
-  const history = JSON.parse(localStorage.getItem("historyRecords") || "[]");
-  recordsList.innerHTML = "";
-  
-  if (history.length === 0) {
-    recordsList.innerHTML = '<div class="no-records">暂无录像记录，开始一场游戏吧！</div>';
-    return;
-  }
-  
-  history.forEach((record, index) => {
-    const item = document.createElement("div");
-    item.className = "record-item";
-    
-    let resultBadge = "";
-    if (record.win !== undefined) {
-      resultBadge = record.win 
-        ? '<span class="text-success">[胜利]</span>' 
-        : '<span class="text-danger">[败北]</span>';
-    }
-    
-    item.innerHTML = `
-      <div class="record-info">
-        <h4>${record.name}</h4>
-        <p>时间: ${record.date} | 英雄: ${record.champion} | KDA: ${record.kda} ${resultBadge}</p>
-      </div>
-      <button class="btn btn-secondary btn-open-item" data-path="${record.path}">播放</button>
-    `;
-    
-    // Open path handler (uses backend open_path command)
-    item.querySelector(".btn-open-item").addEventListener("click", () => {
-      invoke("open_path", { path: record.path });
-    });
-    
-    recordsList.appendChild(item);
-  });
 }
 
 // Tab Switching
@@ -331,7 +293,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   audioOutputSelect = document.getElementById("audio-output");
   audioInputSelect = document.getElementById("audio-input");
   autostartToggle = document.getElementById("autostart-toggle");
-  recordsList = document.getElementById("records-list");
   
   // Set up Tabs
   setupTabs();
@@ -343,9 +304,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   videoBitrateSelect.value = settings.bitrate;
   autostartToggle.checked = settings.autostart;
   
-  // Load audio list and render history
+  // Load audio list
   await loadAudioDevices();
-  renderHistory();
   
   // Setup LCU status checker polling
   checkLcuStatus();
@@ -381,6 +341,18 @@ window.addEventListener("DOMContentLoaded", async () => {
       console.error("Failed to select directory:", err);
     }
   });
+
+  // Open save directory button
+  document.getElementById("btn-open-dir").addEventListener("click", async () => {
+    const path = saveDirInput.value;
+    if (path) {
+      try {
+        await invoke("open_path", { path });
+      } catch (err) {
+        console.error("Failed to open directory:", err);
+      }
+    }
+  });
   
   // Refresh audio device list button
   document.getElementById("btn-refresh-audio").addEventListener("click", async () => {
@@ -391,19 +363,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Manual actions
   btnStartRecord.addEventListener("click", startRecordingAction);
   btnStopRecord.addEventListener("click", stopRecordingAction);
-  
-  // Clear records toolbar actions
-  document.getElementById("btn-open-folder").addEventListener("click", () => {
-    const settings = getSettings();
-    invoke("open_path", { path: settings.saveDir });
-  });
-  
-  document.getElementById("btn-clear-history").addEventListener("click", () => {
-    if (confirm("确定要清空录像历史列表吗？(这不会删除本地硬盘上的视频文件)")) {
-      localStorage.setItem("historyRecords", "[]");
-      renderHistory();
-    }
-  });
 
   // Listen to LCU monitor events emitted by Rust background monitor
   await listen("lcu-game-start", async () => {
