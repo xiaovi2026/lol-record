@@ -275,9 +275,9 @@ function renderHistory() {
       <button class="btn btn-secondary btn-open-item" data-path="${record.path}">播放</button>
     `;
     
-    // Open path handler (uses shell)
+    // Open path handler (uses backend open_path command)
     item.querySelector(".btn-open-item").addEventListener("click", () => {
-      invoke("plugin:opener|open_path", { path: record.path });
+      invoke("open_path", { path: record.path });
     });
     
     recordsList.appendChild(item);
@@ -395,7 +395,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Clear records toolbar actions
   document.getElementById("btn-open-folder").addEventListener("click", () => {
     const settings = getSettings();
-    invoke("plugin:opener|open_path", { path: settings.saveDir });
+    invoke("open_path", { path: settings.saveDir });
   });
   
   document.getElementById("btn-clear-history").addEventListener("click", () => {

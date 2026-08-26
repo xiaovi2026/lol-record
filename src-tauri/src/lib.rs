@@ -51,6 +51,15 @@ fn select_directory() -> Option<String> {
 }
 
 #[tauri::command]
+fn open_path(path: String) -> Result<(), String> {
+    std::process::Command::new("cmd")
+        .args(&["/c", "start", "", &path])
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
     std::fs::rename(old_path, new_path).map_err(|e| e.to_string())
 }
@@ -201,7 +210,8 @@ pub fn run() {
             stop_manual_record,
             request_lcu,
             rename_file,
-            select_directory
+            select_directory,
+            open_path
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
