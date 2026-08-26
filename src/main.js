@@ -68,20 +68,59 @@ async function loadAudioDevices() {
   }
 }
 
-// Check LCU connection state
+// Check LCU connection state and details
 async function checkLcuStatus() {
   try {
     const creds = await invoke("get_lcu_status");
+    const indicator = document.getElementById("lcu-indicator");
     if (creds) {
       lcuCredentials = creds;
       lcuStatusText.textContent = `已连接 (端口: ${creds.port})`;
-      lcuStatusText.className = "status-text text-success";
-      document.getElementById("card-lcu").style.borderColor = "var(--success)";
+      lcuStatusText.className = "status-desc text-success";
+      if (indicator) {
+        indicator.className = "status-indicator-circle state-success";
+      }
+      
+      // Fetch current game details
+      try {
+        const session = await invoke("request_lcu", { method: "GET", endpoint: "/lol-gameflow/v1/session" });
+        if (session && session.gameData) {
+          document.getElementById("game-mode").textContent = session.gameData.queue?.name || "自定义/其他对局";
+        } else {
+          document.getElementById("game-mode").textContent = "无活动对局";
+        }
+        
+        const phase = await invoke("request_lcu", { method: "GET", endpoint: "/lol-gameflow/v1/gameflow-phase" });
+        if (phase) {
+          const phaseTranslations = {
+            "None": "大厅/空闲",
+            "Lobby": "房间中",
+            "Matchmaking": "正在匹配",
+            "ReadyCheck": "找到对局/准备就绪",
+            "ChampSelect": "选英雄中",
+            "GameStart": "游戏启动中",
+            "InProgress": "游戏进行中 (自动录像中)",
+            "PreEndOfGame": "对局即将结束",
+            "EndOfGame": "对局结束结算",
+            "WaitingForStats": "等待战绩数据",
+          };
+          const cleanPhase = phase.replace(/"/g, "");
+          document.getElementById("game-phase").textContent = phaseTranslations[cleanPhase] || cleanPhase;
+        }
+      } catch (e) {
+        document.getElementById("game-mode").textContent = "获取中...";
+        document.getElementById("game-phase").textContent = "获取中...";
+      }
+      
+      document.getElementById("lcu-details").style.display = "flex";
     } else {
       lcuCredentials = null;
       lcuStatusText.textContent = "未检测到客户端运行";
-      lcuStatusText.className = "status-text text-danger";
-      document.getElementById("card-lcu").style.borderColor = "var(--border-color)";
+      lcuStatusText.className = "status-desc text-danger";
+      if (indicator) {
+        indicator.className = "status-indicator-circle state-danger";
+      }
+      document.getElementById("lcu-details").style.display = "none";
     }
   } catch (err) {
     console.error(err);
@@ -91,24 +130,28 @@ async function checkLcuStatus() {
 // Update recording status in UI
 function updateRecordingUI(recording, filename = "") {
   isRecording = recording;
+  const indicator = document.getElementById("record-indicator");
   if (recording) {
     recordStatusText.textContent = "正在录制中";
-    recordStatusText.className = "status-text text-success recording-blink";
-    document.getElementById("card-record").style.borderColor = "var(--success)";
+    recordStatusText.className = "status-desc text-success recording-blink";
+    if (indicator) {
+      indicator.className = "status-indicator-circle state-success";
+    }
     btnStartRecord.disabled = true;
     btnStopRecord.disabled = false;
     
-    document.getElementById("game-info-box").style.display = "block";
-    document.getElementById("game-mode").textContent = lcuCredentials ? "英雄联盟对局" : "手动录像";
-    document.getElementById("game-phase").textContent = "录像进行中";
+    document.getElementById("record-details").style.display = "flex";
+    document.getElementById("record-source").textContent = lcuCredentials ? "英雄联盟对局 (自动)" : "手动录像";
     document.getElementById("game-filepath").textContent = filename;
   } else {
     recordStatusText.textContent = "未开始录制";
-    recordStatusText.className = "status-text text-gray";
-    document.getElementById("card-record").style.borderColor = "var(--border-color)";
+    recordStatusText.className = "status-desc text-gray";
+    if (indicator) {
+      indicator.className = "status-indicator-circle state-gray";
+    }
     btnStartRecord.disabled = false;
     btnStopRecord.disabled = true;
-    document.getElementById("game-info-box").style.display = "none";
+    document.getElementById("record-details").style.display = "none";
   }
 }
 
@@ -363,6 +406,34 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Manual actions
   btnStartRecord.addEventListener("click", startRecordingAction);
   btnStopRecord.addEventListener("click", stopRecordingAction);
+
+  // Hidden developer recording control panel toggle (5 consecutive clicks on version text)
+  let versionClickCount = 0;
+  let lastVersionClickTime = 0;
+  
+  document.getElementById("version-text").addEventListener("click", () => {
+    const currentTime = Date.now();
+    if (currentTime - lastVersionClickTime < 1500) {
+      versionClickCount++;
+    } else {
+      versionClickCount = 1;
+    }
+    lastVersionClickTime = currentTime;
+    
+    if (versionClickCount === 5) {
+      const devCard = document.getElementById("card-developer-control");
+      if (devCard) {
+        if (devCard.style.display === "none") {
+          devCard.style.display = "flex";
+          alert("开发者手动录像控制面板已开启！");
+        } else {
+          devCard.style.display = "none";
+          alert("开发者手动录像控制面板已关闭！");
+        }
+      }
+      versionClickCount = 0;
+    }
+  });
 
   // Listen to LCU monitor events emitted by Rust background monitor
   await listen("lcu-game-start", async () => {

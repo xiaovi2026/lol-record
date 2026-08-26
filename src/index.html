@@ -26,7 +26,7 @@
         </nav>
         <div class="sidebar-footer">
           <p>开机自启: <span id="autostart-status">已关闭</span></p>
-          <p class="version">v0.2.1</p>
+          <p class="version" id="version-text" style="user-select: none;">v0.2.1</p>
         </div>
       </aside>
 
@@ -34,40 +34,77 @@
       <main class="main-content">
         <!-- Dashboard Tab -->
         <section id="tab-dashboard" class="tab-content active">
-          <div class="status-grid">
-            <div class="status-card" id="card-lcu">
-              <div class="card-icon">🎮</div>
-              <div class="card-details">
+          <div class="dashboard-cards">
+            
+            <!-- LCU Status Card -->
+            <div class="dash-card" id="card-lcu">
+              <div class="card-left">
+                <div class="status-indicator-circle state-danger" id="lcu-indicator">
+                  <svg class="svg-icon" viewBox="0 0 24 24">
+                    <path d="M17 5H7a6 6 0 0 0-6 6v4a6 6 0 0 0 6 6h10a6 6 0 0 0 6-6v-4a6 6 0 0 0-6-6zm-8 9H7v2H6v-2H4v-1h2v-2h1v2h2v1zm4.5-.5a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm2.5 2.5a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm0-4a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm2.5 1.5a1 1 0 1 1 1-1 1 1 0 0 1-1 1z"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="card-mid">
                 <h3>英雄联盟客户端 (LCU)</h3>
-                <p class="status-text text-danger" id="lcu-status-text">未检测到客户端运行</p>
+                <p class="status-desc" id="lcu-status-text">未检测到客户端运行</p>
+              </div>
+              <div class="card-right" id="lcu-details" style="display: none;">
+                <div class="info-row">
+                  <span class="info-label">对局模式</span>
+                  <span class="info-value" id="game-mode">-</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">当前状态</span>
+                  <span class="info-value" id="game-phase">-</span>
+                </div>
               </div>
             </div>
 
-            <div class="status-card" id="card-record">
-              <div class="card-icon">🔴</div>
-              <div class="card-details">
-                <h3>录制状态</h3>
-                <p class="status-text text-gray" id="record-status-text">未开始录制</p>
+            <!-- Recording Status Card -->
+            <div class="dash-card" id="card-record">
+              <div class="card-left">
+                <div class="status-indicator-circle state-gray" id="record-indicator">
+                  <svg class="svg-icon" viewBox="0 0 24 24">
+                    <path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="card-mid">
+                <h3>自动录制状态</h3>
+                <p class="status-desc" id="record-status-text">未开始录制</p>
+              </div>
+              <div class="card-right" id="record-details" style="display: none;">
+                <div class="info-row">
+                  <span class="info-label">录屏来源</span>
+                  <span class="info-value" id="record-source">-</span>
+                </div>
+                <div class="info-row filepath-container">
+                  <span class="info-label">输出文件</span>
+                  <code id="game-filepath">-</code>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="action-box">
-            <h2>手动控制录像</h2>
-            <p class="info-text">在未启动LOL游戏时，您也可以手动控制开始/结束录屏以进行系统测试。</p>
-            <div class="btn-group">
-              <button id="btn-start-record" class="btn btn-primary">手动开始录制</button>
-              <button id="btn-stop-record" class="btn btn-danger" disabled>停止录制并保存</button>
+            <!-- Manual Control Card (Developer Only, toggled by triple clicking version) -->
+            <div class="dash-card" id="card-developer-control" style="display: none;">
+              <div class="card-left">
+                <div class="status-indicator-circle state-gray">
+                  <svg class="svg-icon" viewBox="0 0 24 24">
+                    <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.488.488 0 0 0-.59.22L2.74 8.87a.49.49 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="card-mid">
+                <h3>开发者录像控制</h3>
+                <p class="status-desc">手动接管并测试视频录制引擎。</p>
+                <div class="action-row-embedded">
+                  <button id="btn-start-record" class="btn btn-primary btn-sm">手动开始录像</button>
+                  <button id="btn-stop-record" class="btn btn-danger btn-sm" disabled>停止录像</button>
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div class="info-box" id="game-info-box" style="display: none;">
-            <h2>当前正在进行的对局</h2>
-            <div class="game-details">
-              <p>游戏模式: <strong id="game-mode">-</strong></p>
-              <p>对局阶段: <strong id="game-phase">-</strong></p>
-              <p>正在录制到: <code id="game-filepath">-</code></p>
-            </div>
+            
           </div>
         </section>
 
