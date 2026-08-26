@@ -45,7 +45,7 @@ async function loadAudioDevices() {
     
     // Clear previous dynamic options (keep default/none)
     audioOutputSelect.innerHTML = '<option value="Default">系统默认输出</option><option value="None">不录制系统音</option>';
-    audioInputSelect.innerHTML = '<option value="None">不录制麦克风</option><option value="Default">系统默认输入</option>';
+    audioInputSelect.innerHTML = '<option value="Default">系统默认输入</option><option value="None">不录制麦克风</option>';
     
     // Populate outputs
     devices.outputs.forEach(dev => {
