@@ -5,169 +5,216 @@
     <link rel="stylesheet" href="styles.css" />
     <script src="main.js" defer></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LOL对局无感录像系统</title>
+    <title>LoL 对局无感录像系统</title>
   </head>
 
   <body>
-    <div class="app-container">
-      <!-- Sidebar Navigation -->
-      <aside class="sidebar">
-        <div class="brand">
-          <div class="logo-icon"></div>
-          <h2>LoL Recorder</h2>
+    <div class="app-layout">
+      <!-- Top App Header -->
+      <header class="app-header">
+        <div class="header-brand">
+          <div class="logo-wrapper">
+            <img src="icon.png" class="logo-icon-img" alt="LoL Record Logo" />
+          </div>
+          <div>
+            <h1 class="app-title">LoL Record</h1>
+            <span class="app-subtitle">英雄联盟无感自动录像</span>
+          </div>
         </div>
-        <nav class="nav-menu">
-          <button class="nav-item active" data-tab="dashboard">
-            <span class="icon">📊</span> 控制面板
-          </button>
-          <button class="nav-item" data-tab="settings">
-            <span class="icon">⚙️</span> 系统设置
-          </button>
-        </nav>
-        <div class="sidebar-footer">
-          <p>开机自启: <span id="autostart-status">已关闭</span></p>
-          <p class="version" id="version-text" style="user-select: none;">v0.2.2</p>
-        </div>
-      </aside>
 
-      <!-- Main Content Area -->
-      <main class="main-content">
-        <!-- Dashboard Tab -->
-        <section id="tab-dashboard" class="tab-content active">
-          <div class="dashboard-cards">
-            
-            <!-- LCU Status Card -->
-            <div class="dash-card" id="card-lcu">
-              <div class="card-left">
-                <div class="status-indicator-circle state-danger" id="lcu-indicator">
+        <div class="header-actions">
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-status" title="刷新客户端与硬件状态">
+            <span>🔄</span> 刷新
+          </button>
+          <button class="btn btn-secondary btn-sm" id="btn-quick-open-dir" title="打开录像保存文件夹">
+            <span>📂</span> 打开目录
+          </button>
+          <span class="version-tag" id="version-text" title="连续点击5次切换调试控制面板">v0.2.2</span>
+        </div>
+      </header>
+
+      <!-- Main Container (Single Clean Scrollable Page) -->
+      <main class="page-body">
+        
+        <!-- Live Status Section (Dual Cards) -->
+        <section class="status-grid">
+          <!-- 1. LCU Client Status Card -->
+          <div class="glass-card status-card" id="card-lcu">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon-circle icon-danger" id="lcu-indicator">
                   <svg class="svg-icon" viewBox="0 0 24 24">
                     <path d="M17 5H7a6 6 0 0 0-6 6v4a6 6 0 0 0 6 6h10a6 6 0 0 0 6-6v-4a6 6 0 0 0-6-6zm-8 9H7v2H6v-2H4v-1h2v-2h1v2h2v1zm4.5-.5a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm2.5 2.5a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm0-4a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm2.5 1.5a1 1 0 1 1 1-1 1 1 0 0 1-1 1z"/>
                   </svg>
                 </div>
-              </div>
-              <div class="card-mid">
-                <h3>英雄联盟客户端 (LCU)</h3>
-                <p class="status-desc" id="lcu-status-text">未检测到客户端运行</p>
-              </div>
-              <div class="card-right" id="lcu-details" style="display: none;">
-                <div class="info-row">
-                  <span class="info-label">对局模式</span>
-                  <span class="info-value" id="game-mode">-</span>
+                <div>
+                  <h3>英雄联盟客户端</h3>
+                  <p class="card-status-label" id="lcu-status-text">未检测到客户端运行</p>
                 </div>
-                <div class="info-row">
-                  <span class="info-label">当前状态</span>
-                  <span class="info-value" id="game-phase">-</span>
+              </div>
+              <span class="badge badge-danger" id="lcu-badge">未连接</span>
+            </div>
+
+            <div class="card-body" id="lcu-details" style="display: none;">
+              <div class="summoner-profile" id="summoner-profile-box" style="display: none;">
+                <div class="summoner-avatar-placeholder">⚔️</div>
+                <div class="summoner-meta">
+                  <div class="summoner-name" id="summoner-name">-</div>
+                  <div class="summoner-level" id="summoner-level">Lv. -</div>
+                </div>
+              </div>
+
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-item-label">当前模式</span>
+                  <span class="info-item-value" id="game-mode">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-item-label">对局阶段</span>
+                  <span class="info-item-value highlight-val" id="game-phase">-</span>
                 </div>
               </div>
             </div>
 
-            <!-- Recording Status Card -->
-            <div class="dash-card" id="card-record">
-              <div class="card-left">
-                <div class="status-indicator-circle state-gray" id="record-indicator">
+            <div class="card-placeholder" id="lcu-placeholder">
+              <span class="placeholder-icon">💡</span>
+              <span>登录并进入英雄联盟大厅后将自动建立通信。</span>
+            </div>
+          </div>
+
+          <!-- 2. Recording Engine Status Card -->
+          <div class="glass-card status-card" id="card-record">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon-circle icon-gray" id="record-indicator">
                   <svg class="svg-icon" viewBox="0 0 24 24">
                     <path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/>
                   </svg>
                 </div>
-              </div>
-              <div class="card-mid">
-                <h3>自动录制状态</h3>
-                <p class="status-desc" id="record-status-text">未开始录制</p>
-              </div>
-              <div class="card-right" id="record-details" style="display: none;">
-                <div class="info-row">
-                  <span class="info-label">录屏来源</span>
-                  <span class="info-value" id="record-source">-</span>
+                <div>
+                  <h3>录像引擎状态</h3>
+                  <p class="card-status-label" id="record-status-text">待命中 (进入对局自动录制)</p>
                 </div>
-                <div class="info-row filepath-container">
-                  <span class="info-label">输出文件</span>
-                  <code id="game-filepath">-</code>
+              </div>
+              <span class="badge badge-gray" id="record-badge">空闲</span>
+            </div>
+
+            <div class="card-body" id="record-details" style="display: none;">
+              <div class="recording-live-banner">
+                <div class="pulse-rec-dot"></div>
+                <span class="rec-time-text" id="rec-duration">录制中...</span>
+              </div>
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-item-label">触发来源</span>
+                  <span class="info-item-value" id="record-source">-</span>
                 </div>
+                <div class="info-item">
+                  <span class="info-item-label">视频规格</span>
+                  <span class="info-item-value" id="record-specs">-</span>
+                </div>
+              </div>
+              <div class="filepath-box">
+                <span class="info-item-label">实时输出文件</span>
+                <code id="game-filepath">-</code>
               </div>
             </div>
 
-            <!-- Manual Control Card (Developer Only, toggled by triple clicking version) -->
-            <div class="dash-card" id="card-developer-control" style="display: none;">
-              <div class="card-left">
-                <div class="status-indicator-circle state-gray">
-                  <svg class="svg-icon" viewBox="0 0 24 24">
-                    <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.488.488 0 0 0-.59.22L2.74 8.87a.49.49 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
-                  </svg>
-                </div>
-              </div>
-              <div class="card-mid">
-                <h3>开发者录像控制</h3>
-                <p class="status-desc">手动接管并测试视频录制引擎。</p>
-                <div class="action-row-embedded">
-                  <button id="btn-start-record" class="btn btn-primary btn-sm">手动开始录像</button>
-                  <button id="btn-stop-record" class="btn btn-danger btn-sm" disabled>停止录像</button>
-                </div>
-              </div>
+            <div class="card-placeholder" id="record-placeholder">
+              <span class="placeholder-icon">⚡</span>
+              <span>对局开始后自动录制，并在赛后自动以英雄与战绩重命名。</span>
             </div>
-            
           </div>
         </section>
 
-        <!-- Settings Tab -->
-        <section id="tab-settings" class="tab-content">
-          <form id="settings-form" class="settings-form">
+        <!-- Developer Manual Recording Controls (Hidden by default) -->
+        <section class="glass-card control-card" id="card-developer-control" style="display: none;">
+          <h4 class="section-subtitle">🎮 开发者录像手动控制</h4>
+          <p class="card-tip">手动控制录屏引擎启动与停止，用于调试和音视频设备测试。</p>
+          <div class="manual-btn-group">
+            <button id="btn-start-record" class="btn btn-primary btn-sm">
+              <span>⏺️</span> 开始手动录制
+            </button>
+            <button id="btn-stop-record" class="btn btn-danger btn-sm" disabled>
+              <span>⏹️</span> 停止录制
+            </button>
+          </div>
+        </section>
+
+        <!-- Settings Form (Directly below dashboard) -->
+        <section class="glass-card settings-card">
+          <h3 class="settings-title">⚙️ 录像与系统设置</h3>
+          
+          <form id="settings-form" class="settings-form-layout">
+            <!-- Save Directory -->
             <div class="form-group">
               <label for="save-dir">视频导出目录</label>
-              <div style="display: flex; gap: 8px;">
-                <input type="text" id="save-dir" placeholder="例如: C:\Videos\LoL-Records" style="flex: 1;" required />
-                <button type="button" id="btn-select-dir" class="btn btn-secondary" title="选择目录" style="padding: 10px 14px;">🔍</button>
-                <button type="button" id="btn-open-dir" class="btn btn-secondary" title="打开目录" style="padding: 10px 14px;">📂</button>
+              <div class="input-with-actions">
+                <input type="text" id="save-dir" placeholder="例如: D:\LoL-Records" required />
+                <button type="button" id="btn-select-dir" class="btn btn-secondary btn-sm" title="选择文件夹">
+                  <span>🔍 选择</span>
+                </button>
+                <button type="button" id="btn-open-dir" class="btn btn-secondary btn-sm" title="打开文件夹">
+                  <span>📂 打开</span>
+                </button>
               </div>
-              <span class="help-text">录制的视频文件将自动保存至此文件夹下。</span>
             </div>
 
-            <div class="form-row">
+            <!-- Video Specs Grid -->
+            <div class="form-grid-2">
               <div class="form-group">
-                <label for="video-res">分辨率</label>
+                <label for="video-res">目标分辨率</label>
                 <select id="video-res">
-                  <option value="1920x1080">1920 x 1080 (1080P)</option>
-                  <option value="1280x720">1280 x 720 (720P)</option>
-                  <option value="2560x1440">2560 x 1440 (2K)</option>
+                  <option value="1920x1080">1920 x 1080 (1080P 高清)</option>
+                  <option value="2560x1440">2560 x 1440 (2K 超清)</option>
+                  <option value="1280x720">1280 x 720 (720P 标清)</option>
                 </select>
               </div>
 
               <div class="form-group">
-                <label for="video-bitrate">码率 (Mbps)</label>
+                <label for="video-bitrate">编码码率 (Mbps)</label>
                 <select id="video-bitrate">
-                  <option value="4">4 Mbps (中等画质)</option>
+                  <option value="4">4 Mbps (体积小)</option>
                   <option value="6" selected>6 Mbps (推荐画质)</option>
-                  <option value="10">10 Mbps (超高画质)</option>
-                  <option value="16">16 Mbps (无损观感)</option>
+                  <option value="10">10 Mbps (高画质)</option>
+                  <option value="16">16 Mbps (极清画质)</option>
                 </select>
               </div>
             </div>
 
-            <div class="form-row">
+            <!-- Audio Devices Grid -->
+            <div class="form-grid-2">
               <div class="form-group">
-                <label for="audio-output">音频输出设备 (系统游戏音)</label>
+                <label for="audio-output">系统声音 (游戏与语音)</label>
                 <select id="audio-output">
-                  <option value="Default">系统默认输出</option>
+                  <option value="Default">系统默认输出设备</option>
                   <option value="None">不录制系统音</option>
                 </select>
               </div>
 
               <div class="form-group">
-                <label for="audio-input">音频输入设备 (麦克风)</label>
+                <label for="audio-input">麦克风输入 (个人人声)</label>
                 <select id="audio-input">
-                  <option value="Default">系统默认输入</option>
+                  <option value="Default">系统默认麦克风</option>
                   <option value="None">不录制麦克风</option>
                 </select>
               </div>
             </div>
 
-            <div class="form-group checkbox-group">
-              <input type="checkbox" id="autostart-toggle" />
-              <label for="autostart-toggle">开机自动启动，并在系统托盘静默运行</label>
+            <!-- Autostart Row -->
+            <div class="switch-row">
+              <div>
+                <div class="switch-label">开机自动启动，并在托盘静默运行</div>
+                <div class="switch-desc">后台自动侦测对局，关闭窗口仅隐藏到系统托盘</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="autostart-toggle" />
+                <span class="slider"></span>
+              </label>
             </div>
-
-            <!-- Buttons removed, settings are saved automatically -->
           </form>
         </section>
+
       </main>
     </div>
   </body>

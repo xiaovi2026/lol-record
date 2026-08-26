@@ -17,20 +17,18 @@ pub fn get_lcu_credentials() -> Option<LcuCredentials> {
     
     for (_, process) in system.processes() {
         let name = process.name().to_lowercase();
-        if name.contains("leagueclientux") {
+        // LeagueClientUx is the main process with the auth token and port
+        if name == "leagueclientux.exe" || name == "leagueclientux" || name.contains("leagueclientux") {
             let cmd = process.cmd().join(" ");
             
-            let port = port_re.captures(&cmd)?
-                .get(1)?
-                .as_str()
-                .parse::<u16>()
-                .ok()?;
-            let token = token_re.captures(&cmd)?
-                .get(1)?
-                .as_str()
-                .to_string();
-                
-            return Some(LcuCredentials { port, token });
+            if let (Some(port_cap), Some(token_cap)) = (port_re.captures(&cmd), token_re.captures(&cmd)) {
+                if let (Some(port_match), Some(token_match)) = (port_cap.get(1), token_cap.get(1)) {
+                    if let Ok(port) = port_match.as_str().parse::<u16>() {
+                        let token = token_match.as_str().to_string();
+                        return Some(LcuCredentials { port, token });
+                    }
+                }
+            }
         }
     }
     None

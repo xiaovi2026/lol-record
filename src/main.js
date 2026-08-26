@@ -5,6 +5,8 @@ const { listen } = window.__TAURI__.event;
 let currentFilePath = null;
 let isRecording = false;
 let lcuCredentials = null;
+let recordStartTime = null;
+let recordTimerInterval = null;
 
 // DOM Elements
 let lcuStatusText, recordStatusText;
@@ -15,7 +17,7 @@ let audioOutputSelect, audioInputSelect, autostartToggle;
 // Load config from localStorage or default
 function getSettings() {
   return {
-    saveDir: localStorage.getItem("saveDir") || "C:\\LoL-Records",
+    saveDir: localStorage.getItem("saveDir") || "D:\\LoL-Records",
     resolution: localStorage.getItem("resolution") || "1920x1080",
     bitrate: parseInt(localStorage.getItem("bitrate") || "6"),
     audioOutput: localStorage.getItem("audioOutput") || "Default",
@@ -38,16 +40,12 @@ function saveSettings(settings) {
 async function loadAudioDevices() {
   try {
     const devices = await invoke("get_audio_devices");
-    
-    // Remember current user values before replacing options
     const currentOutput = audioOutputSelect.value || localStorage.getItem("audioOutput") || "Default";
     const currentInput = audioInputSelect.value || localStorage.getItem("audioInput") || "None";
     
-    // Clear previous dynamic options (keep default/none)
-    audioOutputSelect.innerHTML = '<option value="Default">系统默认输出</option><option value="None">不录制系统音</option>';
-    audioInputSelect.innerHTML = '<option value="Default">系统默认输入</option><option value="None">不录制麦克风</option>';
+    audioOutputSelect.innerHTML = '<option value="Default">系统默认输出设备</option><option value="None">不录制系统音</option>';
+    audioInputSelect.innerHTML = '<option value="Default">系统默认麦克风</option><option value="None">不录制麦克风</option>';
     
-    // Populate outputs
     devices.outputs.forEach(dev => {
       const opt = document.createElement("option");
       opt.value = dev.name;
@@ -55,7 +53,6 @@ async function loadAudioDevices() {
       audioOutputSelect.appendChild(opt);
     });
     
-    // Populate inputs
     devices.inputs.forEach(dev => {
       const opt = document.createElement("option");
       opt.value = dev.name;
@@ -63,7 +60,6 @@ async function loadAudioDevices() {
       audioInputSelect.appendChild(opt);
     });
     
-    // Restore selections if they exist in the new options list
     if ([...audioOutputSelect.options].some(o => o.value === currentOutput)) {
       audioOutputSelect.value = currentOutput;
     } else {
@@ -85,85 +81,166 @@ async function checkLcuStatus() {
   try {
     const creds = await invoke("get_lcu_status");
     const indicator = document.getElementById("lcu-indicator");
+    const lcuBadge = document.getElementById("lcu-badge");
+    const lcuPlaceholder = document.getElementById("lcu-placeholder");
+    const lcuDetails = document.getElementById("lcu-details");
+    const sidebarClientDot = document.getElementById("sidebar-client-dot");
+    const sidebarClientText = document.getElementById("sidebar-client-text");
+    
     if (creds) {
       lcuCredentials = creds;
-      lcuStatusText.textContent = `已连接 (端口: ${creds.port})`;
-      lcuStatusText.className = "status-desc text-success";
-      if (indicator) {
-        indicator.className = "status-indicator-circle state-success";
+      lcuStatusText.textContent = `已连接 (通信端口: ${creds.port})`;
+      
+      if (indicator) indicator.className = "card-icon-circle icon-success";
+      if (lcuBadge) {
+        lcuBadge.className = "badge badge-success";
+        lcuBadge.textContent = "已连接";
+      }
+      if (sidebarClientDot) sidebarClientDot.className = "status-dot dot-success";
+      if (sidebarClientText) sidebarClientText.textContent = `LOL大厅 (${creds.port})`;
+      if (lcuPlaceholder) lcuPlaceholder.style.display = "none";
+      if (lcuDetails) lcuDetails.style.display = "flex";
+
+      // Fetch Summoner Info
+      try {
+        const summoner = await invoke("request_lcu", { method: "GET", endpoint: "/lol-summoner/v1/current-summoner" });
+        if (summoner && (summoner.displayName || summoner.gameName)) {
+          const profileBox = document.getElementById("summoner-profile-box");
+          const nameEl = document.getElementById("summoner-name");
+          const levelEl = document.getElementById("summoner-level");
+          if (profileBox) profileBox.style.display = "flex";
+          if (nameEl) nameEl.textContent = summoner.gameName ? `${summoner.gameName} #${summoner.tagLine || ""}` : summoner.displayName;
+          if (levelEl) levelEl.textContent = `等级: Lv.${summoner.summonerLevel || 1}`;
+        }
+      } catch (e) {
+        // Summoner info might be pending
       }
       
-      // Fetch current game details
+      // Fetch Gameflow Phase & Session
       try {
-        const session = await invoke("request_lcu", { method: "GET", endpoint: "/lol-gameflow/v1/session" });
-        if (session && session.gameData) {
-          document.getElementById("game-mode").textContent = session.gameData.queue?.name || "自定义/其他对局";
-        } else {
-          document.getElementById("game-mode").textContent = "无活动对局";
-        }
-        
         const phase = await invoke("request_lcu", { method: "GET", endpoint: "/lol-gameflow/v1/gameflow-phase" });
         if (phase) {
           const phaseTranslations = {
-            "None": "大厅/空闲",
-            "Lobby": "房间中",
-            "Matchmaking": "正在匹配",
-            "ReadyCheck": "找到对局/准备就绪",
-            "ChampSelect": "选英雄中",
-            "GameStart": "游戏启动中",
-            "InProgress": "游戏进行中 (自动录像中)",
+            "None": "大厅空闲",
+            "Lobby": "组队房间中",
+            "Matchmaking": "正在匹配对局",
+            "ReadyCheck": "找到对局 (就绪确认)",
+            "ChampSelect": "英雄选择中",
+            "GameStart": "游戏载入启动中",
+            "InProgress": "🎮 游戏进行中 (录像中)",
             "PreEndOfGame": "对局即将结束",
-            "EndOfGame": "对局结束结算",
+            "EndOfGame": "对局结算中",
             "WaitingForStats": "等待战绩数据",
           };
           const cleanPhase = phase.replace(/"/g, "");
-          document.getElementById("game-phase").textContent = phaseTranslations[cleanPhase] || cleanPhase;
+          const phaseEl = document.getElementById("game-phase");
+          if (phaseEl) phaseEl.textContent = phaseTranslations[cleanPhase] || cleanPhase;
+        }
+
+        const session = await invoke("request_lcu", { method: "GET", endpoint: "/lol-gameflow/v1/session" });
+        const modeEl = document.getElementById("game-mode");
+        if (session && session.gameData && modeEl) {
+          modeEl.textContent = session.gameData.queue?.name || session.gameData.gameMode || "匹配/排位模式";
+        } else if (modeEl) {
+          modeEl.textContent = "大厅就绪";
         }
       } catch (e) {
-        document.getElementById("game-mode").textContent = "获取中...";
-        document.getElementById("game-phase").textContent = "获取中...";
+        // Ignored
       }
-      
-      document.getElementById("lcu-details").style.display = "flex";
     } else {
       lcuCredentials = null;
       lcuStatusText.textContent = "未检测到客户端运行";
-      lcuStatusText.className = "status-desc text-danger";
-      if (indicator) {
-        indicator.className = "status-indicator-circle state-danger";
+      
+      if (indicator) indicator.className = "card-icon-circle icon-danger";
+      if (lcuBadge) {
+        lcuBadge.className = "badge badge-danger";
+        lcuBadge.textContent = "未连接";
       }
-      document.getElementById("lcu-details").style.display = "none";
+      if (sidebarClientDot) sidebarClientDot.className = "status-dot dot-danger";
+      if (sidebarClientText) sidebarClientText.textContent = "客户端未连接";
+      if (lcuPlaceholder) lcuPlaceholder.style.display = "flex";
+      if (lcuDetails) lcuDetails.style.display = "none";
+      const profileBox = document.getElementById("summoner-profile-box");
+      if (profileBox) profileBox.style.display = "none";
     }
   } catch (err) {
     console.error(err);
   }
 }
 
+// Timer helper for recording
+function startRecordTimer() {
+  recordStartTime = Date.now();
+  const timerEl = document.getElementById("rec-duration");
+  if (recordTimerInterval) clearInterval(recordTimerInterval);
+  
+  recordTimerInterval = setInterval(() => {
+    if (!recordStartTime) return;
+    const diff = Math.floor((Date.now() - recordStartTime) / 1000);
+    const mins = String(Math.floor(diff / 60)).padStart(2, "0");
+    const secs = String(diff % 60).padStart(2, "0");
+    if (timerEl) timerEl.textContent = `录制中: ${mins}:${secs}`;
+  }, 1000);
+}
+
+function stopRecordTimer() {
+  if (recordTimerInterval) {
+    clearInterval(recordTimerInterval);
+    recordTimerInterval = null;
+  }
+  recordStartTime = null;
+}
+
 // Update recording status in UI
 function updateRecordingUI(recording, filename = "") {
   isRecording = recording;
   const indicator = document.getElementById("record-indicator");
+  const recordBadge = document.getElementById("record-badge");
+  const recordDetails = document.getElementById("record-details");
+  const recordPlaceholder = document.getElementById("record-placeholder");
+  const sidebarRecordDot = document.getElementById("sidebar-record-dot");
+  const sidebarRecordText = document.getElementById("sidebar-record-text");
+  
+  const settings = getSettings();
+  
   if (recording) {
-    recordStatusText.textContent = "正在录制中";
-    recordStatusText.className = "status-desc text-success recording-blink";
-    if (indicator) {
-      indicator.className = "status-indicator-circle state-success";
+    recordStatusText.textContent = "正在实时录制中";
+    if (indicator) indicator.className = "card-icon-circle icon-success";
+    if (recordBadge) {
+      recordBadge.className = "badge badge-success";
+      recordBadge.textContent = "录制中";
     }
+    if (sidebarRecordDot) sidebarRecordDot.className = "status-dot dot-success";
+    if (sidebarRecordText) sidebarRecordText.textContent = "🔴 录制中...";
+    
     btnStartRecord.disabled = true;
     btnStopRecord.disabled = false;
     
-    document.getElementById("record-details").style.display = "flex";
-    document.getElementById("record-source").textContent = lcuCredentials ? "英雄联盟对局 (自动)" : "手动录像";
+    if (recordDetails) recordDetails.style.display = "flex";
+    if (recordPlaceholder) recordPlaceholder.style.display = "none";
+    
+    document.getElementById("record-source").textContent = lcuCredentials ? "英雄联盟对局 (全自动)" : "手动控制录像";
+    document.getElementById("record-specs").textContent = `${settings.resolution} @ ${settings.bitrate}Mbps`;
     document.getElementById("game-filepath").textContent = filename;
+    
+    startRecordTimer();
   } else {
-    recordStatusText.textContent = "未开始录制";
-    recordStatusText.className = "status-desc text-gray";
-    if (indicator) {
-      indicator.className = "status-indicator-circle state-gray";
+    recordStatusText.textContent = "待命中 (对局开始自动触发)";
+    if (indicator) indicator.className = "card-icon-circle icon-gray";
+    if (recordBadge) {
+      recordBadge.className = "badge badge-gray";
+      recordBadge.textContent = "空闲";
     }
+    if (sidebarRecordDot) sidebarRecordDot.className = "status-dot dot-gray";
+    if (sidebarRecordText) sidebarRecordText.textContent = "录像待命中";
+    
     btnStartRecord.disabled = false;
     btnStopRecord.disabled = true;
-    document.getElementById("record-details").style.display = "none";
+    
+    if (recordDetails) recordDetails.style.display = "none";
+    if (recordPlaceholder) recordPlaceholder.style.display = "flex";
+    
+    stopRecordTimer();
   }
   
   // Disable / Enable settings panel changes depending on recording state
@@ -178,9 +255,7 @@ function updateRecordingUI(recording, filename = "") {
     autostartToggle
   ];
   settingsFields.forEach(field => {
-    if (field) {
-      field.disabled = recording;
-    }
+    if (field) field.disabled = recording;
   });
 }
 
@@ -216,125 +291,71 @@ async function stopRecordingAction() {
     currentFilePath = null;
     updateRecordingUI(false);
     
-    // Save to history & try LCU renaming
-    setTimeout(() => handleMatchRenameAndHistory(origPath), 3000);
+    // Auto rename match
+    setTimeout(() => handleMatchRename(origPath), 3000);
   } catch (err) {
     alert("停止录像失败: " + err);
   }
 }
 
 // Fetch match stats from LCU and rename the file
-async function handleMatchRenameAndHistory(filePath) {
-  let finalPath = filePath;
-  let recordName = PathGetFileName(filePath);
-  let metadata = null;
+async function handleMatchRename(filePath) {
+  if (!lcuCredentials) return;
   
-  if (lcuCredentials) {
-    try {
-      // 1. Get current summoner
-      const summoner = await invoke("request_lcu", { method: "GET", endpoint: "/lol-summoner/v1/current-summoner" });
-      if (summoner && summoner.summonerId) {
-        // Retry loop to allow LCU to update match history (typically takes a few seconds)
-        for (let attempt = 0; attempt < 3; attempt++) {
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          const matchData = await invoke("request_lcu", {
-            method: "GET",
-            endpoint: "/lol-match-history/v1/products/lol/current-summoner/matches",
-          });
-          
-          if (matchData && matchData.games && matchData.games.games && matchData.games.games.length > 0) {
-            const lastGame = matchData.games.games[0];
+  try {
+    const summoner = await invoke("request_lcu", { method: "GET", endpoint: "/lol-summoner/v1/current-summoner" });
+    if (summoner && summoner.summonerId) {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        const matchData = await invoke("request_lcu", {
+          method: "GET",
+          endpoint: "/lol-match-history/v1/products/lol/current-summoner/matches",
+        });
+        
+        if (matchData && matchData.games && matchData.games.games && matchData.games.games.length > 0) {
+          const lastGame = matchData.games.games[0];
+          const identity = lastGame.participantIdentities.find(id => id.player && id.player.summonerId === summoner.summonerId);
+          if (identity) {
+            const myPartId = identity.participantId;
+            const myPart = lastGame.participants.find(p => p.participantId === myPartId);
             
-            // Map identities to find participant ID
-            const identity = lastGame.participantIdentities.find(id => id.player && id.player.summonerId === summoner.summonerId);
-            if (identity) {
-              const myPartId = identity.participantId;
-              const myPart = lastGame.participants.find(p => p.participantId === myPartId);
+            if (myPart && myPart.stats) {
+              const stats = myPart.stats;
+              const winText = stats.win ? "胜利" : "败北";
+              const kda = `${stats.kills}_${stats.deaths}_${stats.assists}`;
               
-              if (myPart && myPart.stats) {
-                const stats = myPart.stats;
-                const winText = stats.win ? "胜利" : "败北";
-                const kda = `${stats.kills}_${stats.deaths}_${stats.assists}`;
-                
-                // Get champion name
-                let championName = `英雄_${myPart.championId}`;
-                try {
-                  const champJson = await invoke("request_lcu", {
-                    method: "GET",
-                    endpoint: `/lol-game-data/assets/v1/champions/${myPart.championId}.json`,
-                  });
-                  if (champJson && champJson.name) {
-                    championName = champJson.name;
-                  }
-                } catch (e) {}
-                
-                metadata = {
-                  champion: championName,
-                  kda: kda.replace(/_/g, "-"),
-                  win: stats.win,
-                  mode: lastGame.gameMode,
-                };
-                
-                // Rename video file
-                const dir = PathGetDirectoryName(filePath);
-                const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, "") + "_" + new Date().toTimeString().slice(0, 5).replace(/:/g, "");
-                const newFilename = `${timestamp}_${championName}_${kda}_${winText}.mp4`;
-                const newPath = `${dir}\\${newFilename}`;
-                
-                await invoke("rename_file", { oldPath: filePath, newPath });
-                finalPath = newPath;
-                recordName = newFilename;
-                break;
-              }
+              let championName = `英雄_${myPart.championId}`;
+              try {
+                const champJson = await invoke("request_lcu", {
+                  method: "GET",
+                  endpoint: `/lol-game-data/assets/v1/champions/${myPart.championId}.json`,
+                });
+                if (champJson && champJson.name) {
+                  championName = champJson.name;
+                }
+              } catch (e) {}
+              
+              const dir = PathGetDirectoryName(filePath);
+              const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+              const timeStr = new Date().toTimeString().slice(0, 5).replace(/:/g, "");
+              const newFilename = `${dateStr}_${timeStr}_${championName}_${kda}_${winText}.mp4`;
+              const newPath = `${dir}\\${newFilename}`;
+              
+              await invoke("rename_file", { oldPath: filePath, newPath });
+              break;
             }
           }
         }
       }
-    } catch (e) {
-      console.error("LCU rename failed, keeping original name:", e);
     }
+  } catch (e) {
+    console.error("LCU rename failed, keeping original name:", e);
   }
-  
-  // Add to local history list in localStorage
-  const history = JSON.parse(localStorage.getItem("historyRecords") || "[]");
-  history.unshift({
-    name: recordName,
-    path: finalPath,
-    date: new Date().toLocaleString(),
-    champion: metadata?.champion || "自定义录制",
-    kda: metadata?.kda || "-",
-    win: metadata?.win,
-  });
-  localStorage.setItem("historyRecords", JSON.stringify(history));
-}
-
-// Path Helpers
-function PathGetFileName(path) {
-  return path.substring(path.lastIndexOf("\\") + 1);
 }
 
 // Directory Helpers
 function PathGetDirectoryName(path) {
   return path.substring(0, path.lastIndexOf("\\"));
-}
-
-// Tab Switching
-function setupTabs() {
-  document.querySelectorAll(".nav-item").forEach(button => {
-    button.addEventListener("click", () => {
-      document.querySelectorAll(".nav-item").forEach(btn => btn.classList.remove("active"));
-      document.querySelectorAll(".tab-content").forEach(tab => tab.classList.remove("active"));
-      
-      button.classList.add("active");
-      const tabId = "tab-" + button.getAttribute("data-tab");
-      document.getElementById(tabId).classList.add("active");
-      
-      // Auto-refresh audio devices when switching to the settings tab
-      if (button.getAttribute("data-tab") === "settings") {
-        loadAudioDevices();
-      }
-    });
-  });
 }
 
 // Autostart setup via Plugin
@@ -349,8 +370,11 @@ async function setupAutostart(enableFlag) {
         await autostart.disable();
       }
       const finalState = await autostart.isEnabled();
-      document.getElementById("autostart-status").textContent = finalState ? "已开启" : "已关闭";
-      document.getElementById("autostart-status").style.color = finalState ? "var(--success)" : "var(--gray)";
+      const statusEl = document.getElementById("autostart-status");
+      if (statusEl) {
+        statusEl.textContent = finalState ? "已开启" : "已关闭";
+        statusEl.style.color = finalState ? "var(--success)" : "var(--text-dim)";
+      }
     }
   } catch (err) {
     console.error("Autostart error:", err);
@@ -359,7 +383,6 @@ async function setupAutostart(enableFlag) {
 
 // Auto-save Settings Action
 async function autoSaveSettings() {
-  // If currently recording, do not allow saving settings
   if (isRecording) return;
   
   const newSettings = {
@@ -388,32 +411,23 @@ window.addEventListener("DOMContentLoaded", async () => {
   audioInputSelect = document.getElementById("audio-input");
   autostartToggle = document.getElementById("autostart-toggle");
   
-  // Set up Tabs
-  setupTabs();
-  
-  // Set up settings
   const settings = getSettings();
   saveDirInput.value = settings.saveDir;
   videoResSelect.value = settings.resolution;
   videoBitrateSelect.value = settings.bitrate;
   autostartToggle.checked = settings.autostart;
   
-  // Load audio list
   await loadAudioDevices();
   
-  // Setup LCU status checker polling
   checkLcuStatus();
   setInterval(checkLcuStatus, 3000);
   
-  // Setup Autostart status on startup
   setTimeout(() => setupAutostart(settings.autostart), 1000);
 
-  // Prevent settings form from submitting on enter key
   document.getElementById("settings-form").addEventListener("submit", (e) => {
     e.preventDefault();
   });
   
-  // Attach auto-save event listeners on settings controls
   saveDirInput.addEventListener("input", autoSaveSettings);
   videoResSelect.addEventListener("change", autoSaveSettings);
   videoBitrateSelect.addEventListener("change", autoSaveSettings);
@@ -421,21 +435,21 @@ window.addEventListener("DOMContentLoaded", async () => {
   audioInputSelect.addEventListener("change", autoSaveSettings);
   autostartToggle.addEventListener("change", autoSaveSettings);
   
-  // Choose save directory button
+  // Select directory button
   document.getElementById("btn-select-dir").addEventListener("click", async () => {
     try {
       const selected = await invoke("select_directory");
       if (selected) {
         saveDirInput.value = selected;
-        autoSaveSettings(); // Trigger autosave after directory select
+        autoSaveSettings();
       }
     } catch (err) {
       console.error("Failed to select directory:", err);
     }
   });
 
-  // Open save directory button
-  document.getElementById("btn-open-dir").addEventListener("click", async () => {
+  // Open directory buttons
+  const openSaveDirHandler = async () => {
     const path = saveDirInput.value;
     if (path) {
       try {
@@ -444,7 +458,21 @@ window.addEventListener("DOMContentLoaded", async () => {
         console.error("Failed to open directory:", err);
       }
     }
-  });
+  };
+  
+  document.getElementById("btn-open-dir").addEventListener("click", openSaveDirHandler);
+  
+  const quickOpen = document.getElementById("btn-quick-open-dir");
+  if (quickOpen) quickOpen.addEventListener("click", openSaveDirHandler);
+  
+  // Refresh status button
+  const refreshBtn = document.getElementById("btn-refresh-status");
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", async () => {
+      await checkLcuStatus();
+      await loadAudioDevices();
+    });
+  }
   
   // Manual actions
   btnStartRecord.addEventListener("click", startRecordingAction);
@@ -454,29 +482,32 @@ window.addEventListener("DOMContentLoaded", async () => {
   let versionClickCount = 0;
   let lastVersionClickTime = 0;
   
-  document.getElementById("version-text").addEventListener("click", () => {
-    const currentTime = Date.now();
-    if (currentTime - lastVersionClickTime < 1500) {
-      versionClickCount++;
-    } else {
-      versionClickCount = 1;
-    }
-    lastVersionClickTime = currentTime;
-    
-    if (versionClickCount === 5) {
-      const devCard = document.getElementById("card-developer-control");
-      if (devCard) {
-        if (devCard.style.display === "none") {
-          devCard.style.display = "flex";
-          alert("开发者手动录像控制面板已开启！");
-        } else {
-          devCard.style.display = "none";
-          alert("开发者手动录像控制面板已关闭！");
-        }
+  const versionTextEl = document.getElementById("version-text");
+  if (versionTextEl) {
+    versionTextEl.addEventListener("click", () => {
+      const currentTime = Date.now();
+      if (currentTime - lastVersionClickTime < 1500) {
+        versionClickCount++;
+      } else {
+        versionClickCount = 1;
       }
-      versionClickCount = 0;
-    }
-  });
+      lastVersionClickTime = currentTime;
+      
+      if (versionClickCount === 5) {
+        const devCard = document.getElementById("card-developer-control");
+        if (devCard) {
+          if (devCard.style.display === "none") {
+            devCard.style.display = "block";
+            alert("开发者手动录像控制面板已开启！");
+          } else {
+            devCard.style.display = "none";
+            alert("开发者手动录像控制面板已隐藏！");
+          }
+        }
+        versionClickCount = 0;
+      }
+    });
+  }
 
   // Listen to LCU monitor events emitted by Rust background monitor
   await listen("lcu-game-start", async () => {

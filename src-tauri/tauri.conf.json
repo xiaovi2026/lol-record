@@ -10,10 +10,11 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "lol-record",
-        "width": 850,
-        "height": 650,
-        "resizable": true,
+        "title": "LoL Record - 英雄联盟无感自动录像",
+        "width": 640,
+        "height": 640,
+        "resizable": false,
+        "maximizable": false,
         "skipTaskbar": true,
         "visible": false
       }
