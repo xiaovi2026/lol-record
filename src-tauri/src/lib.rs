@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 static MONITORING_ACTIVE: AtomicBool = AtomicBool::new(true);
 
 #[tauri::command]
-fn get_audio_devices() -> Result<serde_json::Value, String> {
+async fn get_audio_devices() -> Result<serde_json::Value, String> {
     let inputs = audio::get_input_devices();
     let outputs = audio::get_output_devices();
     Ok(serde_json::json!({
@@ -22,12 +22,12 @@ fn get_audio_devices() -> Result<serde_json::Value, String> {
 }
 
 #[tauri::command]
-fn get_lcu_status() -> Option<lcu::LcuCredentials> {
+async fn get_lcu_status() -> Option<lcu::LcuCredentials> {
     lcu::get_lcu_credentials()
 }
 
 #[tauri::command]
-fn start_manual_record(
+async fn start_manual_record(
     path: String,
     width: u32,
     height: u32,
@@ -39,19 +39,19 @@ fn start_manual_record(
 }
 
 #[tauri::command]
-fn stop_manual_record() -> Result<String, String> {
+async fn stop_manual_record() -> Result<String, String> {
     record::stop_recording()
 }
 
 #[tauri::command]
-fn select_directory() -> Option<String> {
+async fn select_directory() -> Option<String> {
     let dir = rfd::FileDialog::new()
         .pick_folder();
     dir.map(|p| p.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
-fn open_path(path: String) -> Result<(), String> {
+async fn open_path(path: String) -> Result<(), String> {
     std::process::Command::new("cmd")
         .args(&["/c", "start", "", &path])
         .spawn()
@@ -60,7 +60,7 @@ fn open_path(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
+async fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
     std::fs::rename(old_path, new_path).map_err(|e| e.to_string())
 }
 
