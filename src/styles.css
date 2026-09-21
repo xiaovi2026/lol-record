@@ -587,7 +587,10 @@ body {
   border-radius: var(--radius-sm);
   font-size: 12px;
   outline: none;
-  max-width: 280px;
+  min-width: 260px;
+  max-width: 440px;
+  text-overflow: ellipsis;
+  cursor: pointer;
 }
 
 .match-select-dropdown:focus {
