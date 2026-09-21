@@ -1,24 +1,16 @@
 mod lcu;
-mod audio;
-mod record;
 
-use tauri::{
-    menu::{MenuBuilder, MenuItem},
-    tray::TrayIconBuilder,
-    AppHandle, Emitter, Manager,
-};
-use std::sync::atomic::{AtomicBool, Ordering};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use std::sync::Mutex;
+use serde::{Deserialize, Serialize};
 
-static MONITORING_ACTIVE: AtomicBool = AtomicBool::new(true);
+#[derive(Default)]
+pub struct AnalysisState(pub Mutex<Option<AnalysisInitData>>);
 
-#[tauri::command]
-async fn get_audio_devices() -> Result<serde_json::Value, String> {
-    let inputs = audio::get_input_devices();
-    let outputs = audio::get_output_devices();
-    Ok(serde_json::json!({
-        "inputs": inputs,
-        "outputs": outputs
-    }))
+#[derive(Clone, Serialize, Deserialize)]
+pub struct AnalysisInitData {
+    pub video_path: String,
+    pub game_id: Option<String>,
 }
 
 #[tauri::command]
@@ -27,32 +19,11 @@ async fn get_lcu_status() -> Option<lcu::LcuCredentials> {
 }
 
 #[tauri::command]
-async fn start_manual_record(
-    path: String,
-    width: u32,
-    height: u32,
-    bitrate_mbps: u32,
-    audio_output: String,
-    audio_input: String,
-) -> Result<(), String> {
-    record::start_recording(&path, width, height, bitrate_mbps, &audio_output, &audio_input)
-}
-
-#[tauri::command]
-async fn get_recording_status() -> bool {
-    record::is_recording_active()
-}
-
-#[tauri::command]
-async fn stop_manual_record() -> Result<String, String> {
-    record::stop_recording()
-}
-
-#[tauri::command]
-async fn select_directory() -> Option<String> {
-    let dir = rfd::FileDialog::new()
-        .pick_folder();
-    dir.map(|p| p.to_string_lossy().into_owned())
+async fn select_video_file() -> Option<String> {
+    let file = rfd::FileDialog::new()
+        .add_filter("视频文件 (*.mp4;*.webm;*.mkv;*.flv;*.mov;*.avi)", &["mp4", "webm", "mkv", "flv", "mov", "avi"])
+        .pick_file();
+    file.map(|p| p.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -62,11 +33,6 @@ async fn open_path(path: String) -> Result<(), String> {
         .spawn()
         .map_err(|e| e.to_string())?;
     Ok(())
-}
-
-#[tauri::command]
-async fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
-    std::fs::rename(old_path, new_path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -102,139 +68,67 @@ async fn request_lcu(
     }
 }
 
-// Background LCU game state poller
-fn start_lcu_monitor(app: AppHandle) {
-    tauri::async_runtime::spawn(async move {
-        let client = reqwest::Client::builder()
-            .danger_accept_invalid_certs(true)
-            .timeout(std::time::Duration::from_secs(2))
-            .build()
-            .unwrap();
-            
-        let mut is_recording = false;
-        
-        while MONITORING_ACTIVE.load(Ordering::Relaxed) {
-            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-            
-            let is_active_in_record = record::is_recording_active();
-            
-            if let Some(creds) = lcu::get_lcu_credentials() {
-                let url = format!("https://127.0.0.1:{}/lol-gameflow/v1/gameflow-phase", creds.port);
-                let response = client.get(&url)
-                    .basic_auth("riot", Some(&creds.token))
-                    .send()
-                    .await;
-                
-                if let Ok(resp) = response {
-                    if let Ok(phase) = resp.text().await {
-                        let clean_phase = phase.trim_matches('"');
-                        let app_ref = app.clone();
-                        
-                        if clean_phase == "InProgress" {
-                            if !is_recording && !is_active_in_record {
-                                let _ = app_ref.emit("lcu-game-start", ());
-                                is_recording = true;
-                            }
-                        } else {
-                            // Any phase other than InProgress (PreEndOfGame, EndOfGame, WaitingForStats, Lobby, None, ChampSelect, etc.)
-                            if is_recording || is_active_in_record {
-                                let _ = app_ref.emit("lcu-game-end", ());
-                                is_recording = false;
-                            }
-                        }
-                    }
-                } else {
-                    // API request failed/timed out: check if in-game process is dead
-                    if is_recording || is_active_in_record {
-                        if !lcu::is_game_process_running() {
-                            let _ = app.emit("lcu-game-end", ());
-                            is_recording = false;
-                        }
-                    }
-                }
-            } else {
-                // Client closed completely
-                if is_recording || is_active_in_record {
-                    let _ = app.emit("lcu-game-end", ());
-                    let _ = record::stop_recording();
-                    is_recording = false;
-                }
-            }
-        }
-    });
+#[tauri::command]
+async fn open_analysis_window(
+    app: AppHandle,
+    state: tauri::State<'_, AnalysisState>,
+    video_path: String,
+    game_id: Option<String>,
+) -> Result<(), String> {
+    let init_data = AnalysisInitData {
+        video_path,
+        game_id,
+    };
+
+    // Store current analysis init data
+    *state.0.lock().map_err(|e| e.to_string())? = Some(init_data.clone());
+
+    if let Some(window) = app.get_webview_window("analysis") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = tauri::Emitter::emit(&window, "reload-analysis", &init_data);
+    } else {
+        let _window = WebviewWindowBuilder::new(
+            &app,
+            "analysis",
+            WebviewUrl::App("analysis.html".into()),
+        )
+        .title("LoL 对局录像分析")
+        .inner_size(1280.0, 800.0)
+        .min_inner_size(960.0, 600.0)
+        .resizable(true)
+        .maximizable(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn get_analysis_init_data(
+    state: tauri::State<'_, AnalysisState>,
+) -> Result<Option<AnalysisInitData>, String> {
+    Ok(state.0.lock().map_err(|e| e.to_string())?.clone())
+}
+
+#[tauri::command]
+fn translate_champion(name: String) -> String {
+    lcu::translate_champion(&name).to_string()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_autostart::init(
-            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            Some(vec![]),
-        ))
-        .setup(|app| {
-            // Build the tray menu
-            let show_i = MenuItem::with_id(app, "show", "显示主界面", true, None::<&str>)?;
-            let quit_i = MenuItem::with_id(app, "quit", "退出应用", true, None::<&str>)?;
-            
-            let menu = MenuBuilder::new(app)
-                .item(&show_i)
-                .item(&quit_i)
-                .build()?;
-                
-            let icon = app.default_window_icon().expect("window icon not configured").clone();
-            
-            let _tray = TrayIconBuilder::new()
-                .menu(&menu)
-                .icon(icon)
-                .on_menu_event(|app_handle, event| {
-                    if event.id == "show" {
-                        if let Some(window) = app_handle.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
-                    } else if event.id == "quit" {
-                        let _ = record::stop_recording();
-                        app_handle.exit(0);
-                    }
-                })
-                .on_tray_icon_event(|tray, event| {
-                    if let tauri::tray::TrayIconEvent::Click {
-                        button: tauri::tray::MouseButton::Left,
-                        button_state: tauri::tray::MouseButtonState::Up,
-                        ..
-                    } = event {
-                        if let Some(window) = tray.app_handle().get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
-                    }
-                })
-                .build(app)?;
-                
-            if let Some(window) = app.get_webview_window("main") {
-                let window_clone = window.clone();
-                window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        api.prevent_close();
-                        let _ = window_clone.hide();
-                    }
-                });
-            }
-            
-            start_lcu_monitor(app.handle().clone());
-            
-            Ok(())
-        })
+        .manage(AnalysisState::default())
         .invoke_handler(tauri::generate_handler![
-            get_audio_devices,
             get_lcu_status,
-            get_recording_status,
-            start_manual_record,
-            stop_manual_record,
             request_lcu,
-            rename_file,
-            select_directory,
+            select_video_file,
+            open_analysis_window,
+            get_analysis_init_data,
+            translate_champion,
             open_path
         ])
         .run(tauri::generate_context!())

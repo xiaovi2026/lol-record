@@ -1,7 +1,7 @@
 [package]
 name = "lol-record"
-version = "0.3.2"
-description = "A Tauri App"
+version = "0.4.0"
+description = "LoL Match Recording Analysis - 英雄联盟对局录像分析"
 authors = ["you"]
 edition = "2021"
 
@@ -18,17 +18,14 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-opener = "2"
-tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sysinfo = "0.30"
-cpal = "0.15"
-windows-capture = "2.0.1"
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.11", features = ["json", "rustls-tls", "blocking"] }
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
 regex = "1"
 rfd = "0.14"
 

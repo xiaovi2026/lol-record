@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="analysis.js" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LoL 对局录像分析 - 录像与事件流联动</title>
+  </head>
+
+  <body class="analysis-body">
+    <div class="analysis-layout">
+      
+      <!-- Top Header Bar -->
+      <header class="analysis-header">
+        <div class="header-left">
+          <div class="logo-wrapper">
+            <img src="icon.png" class="logo-icon-img" alt="LoL Record Logo" />
+          </div>
+          <div class="header-titles">
+            <h2 class="analysis-title">LoL 对局录像分析</h2>
+            <span class="video-filename" id="video-filename-display">加载中...</span>
+          </div>
+        </div>
+
+        <div class="header-center" id="match-summary-header" style="display: none;">
+          <div class="match-badge-summary">
+            <span class="champ-name-badge" id="summary-champ-name">-</span>
+            <span class="kda-badge" id="summary-kda">-</span>
+            <span class="result-badge" id="summary-result">-</span>
+            <span class="mode-badge" id="summary-mode">-</span>
+          </div>
+        </div>
+
+        <div class="header-right">
+          <div class="match-select-wrapper">
+            <label for="match-select" class="match-select-label">关联对局:</label>
+            <select id="match-select" class="match-select-dropdown">
+              <option value="">正在检测对局战绩...</option>
+            </select>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-timeline" title="刷新战绩与时间线">
+            <span>🔄 刷新</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Content (Two Columns) -->
+      <main class="analysis-main">
+        
+        <!-- Left Column: Video Player Container -->
+        <section class="analysis-left">
+          <div class="video-player-container" id="player-container">
+            <video id="match-video" preload="auto"></video>
+
+            <!-- Video Big Play Overlay (when paused) -->
+            <div class="video-overlay-play" id="overlay-play-btn">
+              <div class="overlay-play-icon">▶</div>
+            </div>
+
+            <!-- Custom Video Controls -->
+            <div class="video-controls-bar">
+              <!-- Timeline Progress Bar with Markers -->
+              <div class="progress-bar-wrapper" id="progress-wrapper">
+                <div class="progress-track" id="progress-track">
+                  <div class="progress-fill" id="progress-fill"></div>
+                  <!-- Event Markers Layer -->
+                  <div class="event-markers-layer" id="event-markers-container"></div>
+                  <!-- Hover preview tooltip -->
+                  <div class="progress-tooltip" id="progress-tooltip">00:00</div>
+                </div>
+              </div>
+
+              <!-- Control Buttons Bar -->
+              <div class="controls-bottom-row">
+                <!-- Left: Play/Pause, Time -->
+                <div class="controls-group">
+                  <button class="ctrl-btn" id="btn-play-pause" title="播放 / 暂停 (空格键)">
+                    <span id="play-pause-icon">▶</span>
+                  </button>
+                  <div class="time-display">
+                    <span id="current-time">00:00</span>
+                    <span class="time-separator">/</span>
+                    <span id="total-duration">00:00</span>
+                  </div>
+                </div>
+
+                <!-- Center: Time Offset Micro-adjuster -->
+                <div class="controls-group offset-adjust-group" title="如果视频开始时间与游戏00:00有延迟，可通过微调对齐时间戳">
+                  <span class="offset-label">时间对齐:</span>
+                  <button class="offset-btn" id="btn-offset-minus">-1s</button>
+                  <span class="offset-val" id="offset-val-text">0s</span>
+                  <button class="offset-btn" id="btn-offset-plus">+1s</button>
+                  <button class="offset-reset-btn" id="btn-offset-reset" title="重置偏移">重置</button>
+                </div>
+
+                <!-- Right: Speed, Volume, Fullscreen -->
+                <div class="controls-group">
+                  <!-- Speed Selector -->
+                  <div class="speed-selector">
+                    <select id="speed-select" class="ctrl-select" title="播放倍速">
+                      <option value="0.5">0.5x</option>
+                      <option value="0.75">0.75x</option>
+                      <option value="1.0" selected>1.0x</option>
+                      <option value="1.25">1.25x</option>
+                      <option value="1.5">1.5x</option>
+                      <option value="2.0">2.0x</option>
+                    </select>
+                  </div>
+
+                  <!-- Volume -->
+                  <div class="volume-group">
+                    <button class="ctrl-btn" id="btn-mute" title="静音 / 恢复音量">
+                      <span id="mute-icon">🔊</span>
+                    </button>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1" class="volume-range" />
+                  </div>
+
+                  <!-- Fullscreen -->
+                  <button class="ctrl-btn" id="btn-fullscreen" title="全屏 (F)">
+                    <span>⛶</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Right Column: Timeline Events Stream -->
+        <section class="analysis-right">
+          <!-- Events Header & Filters -->
+          <div class="events-panel-header">
+            <div class="events-panel-title-row">
+              <h3 class="events-panel-title">对局具体事件</h3>
+              <span class="events-count-badge" id="events-count">0 个事件</span>
+            </div>
+            <!-- Category Filter Tabs -->
+            <div class="events-filter-tabs">
+              <button class="filter-tab active" data-filter="all">全部</button>
+              <button class="filter-tab" data-filter="kill">击杀</button>
+              <button class="filter-tab" data-filter="monster">中立生物</button>
+              <button class="filter-tab" data-filter="building">防御塔/水晶</button>
+            </div>
+          </div>
+
+          <!-- LCU Warning / Notice -->
+          <div class="lcu-notice-banner" id="lcu-notice" style="display: none;">
+            <span class="notice-icon">⚠️</span>
+            <span class="notice-text" id="lcu-notice-text">未检测到客户端运行，无法拉取事件数据</span>
+          </div>
+
+          <!-- Events List -->
+          <div class="events-scroll-container" id="events-list">
+            <div class="events-empty-placeholder" id="events-empty">
+              <span class="empty-icon">⏳</span>
+              <span>正在获取对局时间线事件...</span>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </body>
+</html>

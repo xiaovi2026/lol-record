@@ -24,6 +24,6 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'lol-record ${{ github.ref_name }}'
-          releaseBody: '自动编译发布的 League of Legends 对局无感录像系统安装包。'
+          releaseBody: '自动编译发布的 League of Legends 对局录像分析系统安装包。'
           releaseDraft: false
           prerelease: false

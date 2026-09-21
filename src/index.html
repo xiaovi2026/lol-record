@@ -5,12 +5,12 @@
     <link rel="stylesheet" href="styles.css" />
     <script src="main.js" defer></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LoL 对局无感录像系统</title>
+    <title>LoL Record - 英雄联盟对局录像分析</title>
   </head>
 
   <body>
-    <div class="app-layout">
-      <!-- Top App Header -->
+    <div class="app-layout main-window">
+      <!-- 1. Header: 软件名称, 版本号, GitHub链接 -->
       <header class="app-header">
         <div class="header-brand">
           <div class="logo-wrapper">
@@ -18,201 +18,71 @@
           </div>
           <div>
             <h1 class="app-title">LoL Record</h1>
-            <span class="app-subtitle">英雄联盟无感自动录像</span>
+            <span class="app-subtitle">英雄联盟对局录像分析</span>
           </div>
         </div>
 
         <div class="header-actions">
-          <button class="btn btn-secondary btn-sm" id="btn-refresh-status" title="刷新客户端与硬件状态">
-            <span>🔄</span> 刷新
+          <span class="version-tag" id="version-text">v0.4.0</span>
+          <button class="btn btn-secondary btn-sm" id="btn-github" title="访问 GitHub 开源主页">
+            <svg class="svg-icon-sm" viewBox="0 0 24 24">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+            <span>GitHub</span>
           </button>
-          <button class="btn btn-secondary btn-sm" id="btn-quick-open-dir" title="打开录像保存文件夹">
-            <span>📂</span> 打开目录
-          </button>
-          <span class="version-tag" id="version-text" title="连续点击5次切换调试控制面板">v0.3.2</span>
         </div>
       </header>
 
-      <!-- Main Container (Single Clean Scrollable Page) -->
-      <main class="page-body">
+      <!-- Main Body -->
+      <main class="page-body main-body">
         
-        <!-- Live Status Section (Dual Cards) -->
-        <section class="status-grid">
-          <!-- 1. LCU Client Status Card -->
-          <div class="glass-card status-card" id="card-lcu">
-            <div class="card-header">
-              <div class="card-title-group">
-                <div class="card-icon-circle icon-danger" id="lcu-indicator">
-                  <svg class="svg-icon" viewBox="0 0 24 24">
-                    <path d="M17 5H7a6 6 0 0 0-6 6v4a6 6 0 0 0 6 6h10a6 6 0 0 0 6-6v-4a6 6 0 0 0-6-6zm-8 9H7v2H6v-2H4v-1h2v-2h1v2h2v1zm4.5-.5a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm2.5 2.5a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm0-4a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm2.5 1.5a1 1 0 1 1 1-1 1 1 0 0 1-1 1z"/>
-                  </svg>
-                </div>
-                <div>
-                  <h3>英雄联盟客户端</h3>
-                  <p class="card-status-label" id="lcu-status-text">未检测到客户端运行</p>
-                </div>
+        <!-- 2. 英雄联盟客户端状态卡片 -->
+        <section class="glass-card status-card" id="card-lcu">
+          <div class="card-header">
+            <div class="card-title-group">
+              <div class="card-icon-circle icon-danger" id="lcu-indicator">
+                <svg class="svg-icon" viewBox="0 0 24 24">
+                  <path d="M17 5H7a6 6 0 0 0-6 6v4a6 6 0 0 0 6 6h10a6 6 0 0 0 6-6v-4a6 6 0 0 0-6-6zm-8 9H7v2H6v-2H4v-1h2v-2h1v2h2v1zm4.5-.5a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm2.5 2.5a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm0-4a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm2.5 1.5a1 1 0 1 1 1-1 1 1 0 0 1-1 1z"/>
+                </svg>
               </div>
-              <span class="badge badge-danger" id="lcu-badge">未连接</span>
-            </div>
-
-            <div class="card-body" id="lcu-details" style="display: none;">
-              <div class="summoner-profile" id="summoner-profile-box" style="display: none;">
-                <div class="summoner-avatar-placeholder">⚔️</div>
-                <div class="summoner-meta">
-                  <div class="summoner-name" id="summoner-name">-</div>
-                  <div class="summoner-level" id="summoner-level">Lv. -</div>
-                </div>
-              </div>
-
-              <div class="info-grid">
-                <div class="info-item">
-                  <span class="info-item-label">当前模式</span>
-                  <span class="info-item-value" id="game-mode">-</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-item-label">对局阶段</span>
-                  <span class="info-item-value highlight-val" id="game-phase">-</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="card-placeholder" id="lcu-placeholder">
-              <span class="placeholder-icon">💡</span>
-              <span>登录并进入英雄联盟大厅后将自动建立通信。</span>
-            </div>
-          </div>
-
-          <!-- 2. Recording Engine Status Card -->
-          <div class="glass-card status-card" id="card-record">
-            <div class="card-header">
-              <div class="card-title-group">
-                <div class="card-icon-circle icon-gray" id="record-indicator">
-                  <svg class="svg-icon" viewBox="0 0 24 24">
-                    <path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/>
-                  </svg>
-                </div>
-                <div>
-                  <h3>录像引擎状态</h3>
-                  <p class="card-status-label" id="record-status-text">待命中 (进入对局自动录制)</p>
-                </div>
-              </div>
-              <span class="badge badge-gray" id="record-badge">空闲</span>
-            </div>
-
-            <div class="card-body" id="record-details" style="display: none;">
-              <div class="recording-live-banner">
-                <div class="pulse-rec-dot"></div>
-                <span class="rec-time-text" id="rec-duration">录制中...</span>
-              </div>
-              <div class="info-grid">
-                <div class="info-item">
-                  <span class="info-item-label">触发来源</span>
-                  <span class="info-item-value" id="record-source">-</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-item-label">视频规格</span>
-                  <span class="info-item-value" id="record-specs">-</span>
-                </div>
-              </div>
-              <div class="filepath-box">
-                <span class="info-item-label">实时输出文件</span>
-                <code id="game-filepath">-</code>
-              </div>
-            </div>
-
-            <div class="card-placeholder" id="record-placeholder">
-              <span class="placeholder-icon">⚡</span>
-              <span>对局开始后自动录制，并在赛后自动以英雄与战绩重命名。</span>
-            </div>
-          </div>
-        </section>
-
-        <!-- Developer Manual Recording Controls (Hidden by default) -->
-        <section class="glass-card control-card" id="card-developer-control" style="display: none;">
-          <h4 class="section-subtitle">🎮 开发者录像手动控制</h4>
-          <p class="card-tip">手动控制录屏引擎启动与停止，用于调试和音视频设备测试。</p>
-          <div class="manual-btn-group">
-            <button id="btn-start-record" class="btn btn-primary btn-sm">
-              <span>⏺️</span> 开始手动录制
-            </button>
-            <button id="btn-stop-record" class="btn btn-danger btn-sm" disabled>
-              <span>⏹️</span> 停止录制
-            </button>
-          </div>
-        </section>
-
-        <!-- Settings Form (Directly below dashboard) -->
-        <section class="glass-card settings-card">
-          <h3 class="settings-title">⚙️ 录像与系统设置</h3>
-          
-          <form id="settings-form" class="settings-form-layout">
-            <!-- Save Directory -->
-            <div class="form-group">
-              <label for="save-dir">视频导出目录</label>
-              <div class="input-with-actions">
-                <input type="text" id="save-dir" placeholder="例如: D:\LoL-Records" required />
-                <button type="button" id="btn-select-dir" class="btn btn-secondary btn-sm" title="选择文件夹">
-                  <span>🔍 选择</span>
-                </button>
-                <button type="button" id="btn-open-dir" class="btn btn-secondary btn-sm" title="打开文件夹">
-                  <span>📂 打开</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Video Specs Grid -->
-            <div class="form-grid-2">
-              <div class="form-group">
-                <label for="video-res">目标分辨率</label>
-                <select id="video-res">
-                  <option value="1920x1080">1920 x 1080 (1080P 高清)</option>
-                  <option value="2560x1440">2560 x 1440 (2K 超清)</option>
-                  <option value="1280x720">1280 x 720 (720P 标清)</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="video-bitrate">编码码率 (Mbps)</label>
-                <select id="video-bitrate">
-                  <option value="4">4 Mbps (体积小)</option>
-                  <option value="6" selected>6 Mbps (推荐画质)</option>
-                  <option value="10">10 Mbps (高画质)</option>
-                  <option value="16">16 Mbps (极清画质)</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Audio Devices Grid -->
-            <div class="form-grid-2">
-              <div class="form-group">
-                <label for="audio-output">系统声音 (游戏与语音)</label>
-                <select id="audio-output">
-                  <option value="Default">系统默认输出设备</option>
-                  <option value="None">不录制系统音</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="audio-input">麦克风输入 (个人人声)</label>
-                <select id="audio-input">
-                  <option value="Default">系统默认麦克风</option>
-                  <option value="None">不录制麦克风</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Autostart Row -->
-            <div class="switch-row">
               <div>
-                <div class="switch-label">开机自动启动，并在托盘静默运行</div>
-                <div class="switch-desc">后台自动侦测对局，关闭窗口仅隐藏到系统托盘</div>
+                <h3>英雄联盟客户端状态</h3>
+                <p class="card-status-label" id="lcu-status-text">未检测到客户端运行</p>
               </div>
-              <label class="toggle-switch">
-                <input type="checkbox" id="autostart-toggle" />
-                <span class="slider"></span>
-              </label>
             </div>
-          </form>
+            <span class="badge badge-danger" id="lcu-badge">未连接</span>
+          </div>
+
+          <!-- Summoner Profile (Connected) -->
+          <div class="summoner-profile" id="summoner-profile-box" style="display: none;">
+            <div class="summoner-avatar-placeholder">⚔️</div>
+            <div class="summoner-meta">
+              <div class="summoner-name" id="summoner-name">-</div>
+              <div class="summoner-level" id="summoner-level">Lv. -</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. 文件选择框(支持拖拽) -->
+        <section class="glass-card dropzone-card" id="dropzone">
+          <div class="dropzone-inner" id="dropzone-content">
+            <div class="dropzone-icon">
+              <svg class="svg-icon-lg" viewBox="0 0 24 24">
+                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+              </svg>
+            </div>
+            <h3 class="dropzone-title">拖拽录像视频文件到此处</h3>
+            <p class="dropzone-subtitle">请导入英雄联盟官方「英雄时刻」录制的对局视频 (.mp4)</p>
+            <button class="btn btn-primary" id="btn-select-file">
+              <span>📁 浏览本地录像文件</span>
+            </button>
+          </div>
+          <div class="dropzone-overlay" id="dropzone-overlay">
+            <div class="dropzone-overlay-content">
+              <span class="dropzone-overlay-icon">📥</span>
+              <span>释放鼠标导入录像文件</span>
+            </div>
+          </div>
         </section>
 
       </main>
