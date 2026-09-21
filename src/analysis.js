@@ -565,10 +565,14 @@ function updateHeaderSummary(matchData) {
 // Fetch matches list from LCU and populate dropdown
 async function fetchMatchesList() {
   try {
-    const creds = await invoke("get_lcu_status");
-    if (!creds) {
+    const status = await invoke("get_lcu_status");
+    if (!status || !status.connected) {
       lcuNotice.style.display = "flex";
-      lcuNoticeText.textContent = "未检测到运行中的英雄联盟客户端，无法自动关联战绩时间线。";
+      if (status && status.permission_denied) {
+        lcuNoticeText.textContent = "检测到英雄联盟客户端运行中，但缺少管理员权限无法读取战绩。请以管理员身份运行本程序。";
+      } else {
+        lcuNoticeText.textContent = "未检测到运行中的英雄联盟客户端，无法自动关联战绩时间线。";
+      }
       matchSelect.innerHTML = '<option value="">客户端未连接</option>';
       return;
     }

@@ -6,23 +6,25 @@ let lcuCredentials = null;
 // Check LCU connection state and details
 async function checkLcuStatus() {
   try {
-    const creds = await invoke("get_lcu_status");
+    const status = await invoke("get_lcu_status");
     const indicator = document.getElementById("lcu-indicator");
     const lcuBadge = document.getElementById("lcu-badge");
     const lcuStatusText = document.getElementById("lcu-status-text");
+    const adminNoticeBox = document.getElementById("admin-notice-box");
     const profileBox = document.getElementById("summoner-profile-box");
     const nameEl = document.getElementById("summoner-name");
     const levelEl = document.getElementById("summoner-level");
 
-    if (creds) {
-      lcuCredentials = creds;
-      lcuStatusText.textContent = `已连接 (通信端口: ${creds.port})`;
+    if (status && status.connected) {
+      lcuCredentials = { port: status.port, token: status.token };
+      lcuStatusText.textContent = `已连接 (通信端口: ${status.port})`;
 
       if (indicator) indicator.className = "card-icon-circle icon-success";
       if (lcuBadge) {
         lcuBadge.className = "badge badge-success";
         lcuBadge.textContent = "已连接";
       }
+      if (adminNoticeBox) adminNoticeBox.style.display = "none";
 
       // Fetch Summoner Info
       try {
@@ -44,6 +46,17 @@ async function checkLcuStatus() {
       } catch (e) {
         // Pending summoner info
       }
+    } else if (status && status.permission_denied) {
+      lcuCredentials = null;
+      lcuStatusText.textContent = "检测到英雄联盟运行中（缺少管理员权限）";
+
+      if (indicator) indicator.className = "card-icon-circle icon-warning";
+      if (lcuBadge) {
+        lcuBadge.className = "badge badge-warning";
+        lcuBadge.textContent = "需管理员权限";
+      }
+      if (adminNoticeBox) adminNoticeBox.style.display = "flex";
+      if (profileBox) profileBox.style.display = "none";
     } else {
       lcuCredentials = null;
       lcuStatusText.textContent = "未检测到客户端运行";
@@ -53,6 +66,7 @@ async function checkLcuStatus() {
         lcuBadge.className = "badge badge-danger";
         lcuBadge.textContent = "未连接";
       }
+      if (adminNoticeBox) adminNoticeBox.style.display = "none";
       if (profileBox) profileBox.style.display = "none";
     }
   } catch (err) {
@@ -81,6 +95,22 @@ window.addEventListener("DOMContentLoaded", async () => {
   checkLcuStatus();
   setInterval(checkLcuStatus, 3000);
 
+
+  // Admin Restart Button
+  const btnRestartAdmin = document.getElementById("btn-restart-admin");
+  if (btnRestartAdmin) {
+    btnRestartAdmin.addEventListener("click", async () => {
+      btnRestartAdmin.disabled = true;
+      btnRestartAdmin.textContent = "正在请求管理员权限...";
+      try {
+        await invoke("restart_as_admin");
+      } catch (err) {
+        alert("以管理员身份重启失败: " + err + "\n请手动退出程序后，右键点击本程序选择「以管理员身份运行」。");
+        btnRestartAdmin.disabled = false;
+        btnRestartAdmin.textContent = "🛡️ 以管理员身份重启";
+      }
+    });
+  }
 
   // GitHub button
   const btnGithub = document.getElementById("btn-github");

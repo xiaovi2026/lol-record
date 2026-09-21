@@ -8,30 +8,108 @@ pub struct LcuCredentials {
     pub token: String,
 }
 
-pub fn get_lcu_credentials() -> Option<LcuCredentials> {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LcuStatusResult {
+    pub connected: bool,
+    pub port: Option<u16>,
+    pub token: Option<String>,
+    pub process_found: bool,
+    pub permission_denied: bool,
+}
+
+pub fn get_lcu_status_detail() -> LcuStatusResult {
     let mut system = System::new_all();
     system.refresh_processes();
     
-    let port_re = Regex::new(r"--app-port=(\d+)").unwrap();
-    let token_re = Regex::new(r"--remoting-auth-token=([a-zA-Z0-9_-]+)").unwrap();
+    let port_re = Regex::new(r#"--app-port="?(\d+)"?"#).unwrap();
+    let token_re = Regex::new(r#"--remoting-auth-token="?([a-zA-Z0-9_\-]+)"?"#).unwrap();
     
+    let mut process_found = false;
+    let mut candidate_dirs: Vec<std::path::PathBuf> = Vec::new();
+
     for (_, process) in system.processes() {
         let name = process.name().to_lowercase();
         // LeagueClientUx is the main process with the auth token and port
         if name == "leagueclientux.exe" || name == "leagueclientux" || name.contains("leagueclientux") {
-            let cmd = process.cmd().join(" ");
+            process_found = true;
             
+            if let Some(exe_path) = process.exe() {
+                if let Some(parent) = exe_path.parent() {
+                    candidate_dirs.push(parent.to_path_buf());
+                }
+            }
+
+            let cmd = process.cmd().join(" ");
             if let (Some(port_cap), Some(token_cap)) = (port_re.captures(&cmd), token_re.captures(&cmd)) {
                 if let (Some(port_match), Some(token_match)) = (port_cap.get(1), token_cap.get(1)) {
                     if let Ok(port) = port_match.as_str().parse::<u16>() {
                         let token = token_match.as_str().to_string();
-                        return Some(LcuCredentials { port, token });
+                        return LcuStatusResult {
+                            connected: true,
+                            port: Some(port),
+                            token: Some(token),
+                            process_found: true,
+                            permission_denied: false,
+                        };
                     }
                 }
             }
         }
     }
-    None
+
+    // Try reading lockfile from candidate dirs (e.g. Riot client or international servers)
+    for dir in candidate_dirs {
+        let lockfile_path = dir.join("lockfile");
+        if lockfile_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&lockfile_path) {
+                let parts: Vec<&str> = content.trim().split(':').collect();
+                if parts.len() >= 4 {
+                    if let Ok(port) = parts[2].parse::<u16>() {
+                        let token = parts[3].to_string();
+                        if !token.is_empty() {
+                            return LcuStatusResult {
+                                connected: true,
+                                port: Some(port),
+                                token: Some(token),
+                                process_found: true,
+                                permission_denied: false,
+                            };
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if process_found {
+        LcuStatusResult {
+            connected: false,
+            port: None,
+            token: None,
+            process_found: true,
+            permission_denied: true,
+        }
+    } else {
+        LcuStatusResult {
+            connected: false,
+            port: None,
+            token: None,
+            process_found: false,
+            permission_denied: false,
+        }
+    }
+}
+
+pub fn get_lcu_credentials() -> Option<LcuCredentials> {
+    let status = get_lcu_status_detail();
+    if status.connected {
+        Some(LcuCredentials {
+            port: status.port?,
+            token: status.token?,
+        })
+    } else {
+        None
+    }
 }
 
 pub fn translate_champion(name: &str) -> &str {

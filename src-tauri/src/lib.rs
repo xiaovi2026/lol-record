@@ -14,8 +14,40 @@ pub struct AnalysisInitData {
 }
 
 #[tauri::command]
-async fn get_lcu_status() -> Option<lcu::LcuCredentials> {
-    lcu::get_lcu_credentials()
+async fn get_lcu_status() -> lcu::LcuStatusResult {
+    lcu::get_lcu_status_detail()
+}
+
+#[tauri::command]
+async fn restart_as_admin(app: AppHandle) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
+        let exe_path = current_exe.to_string_lossy().to_string();
+        
+        let status = std::process::Command::new("powershell")
+            .args(&[
+                "-NoProfile",
+                "-WindowStyle", "Hidden",
+                "-Command",
+                &format!("Start-Process -FilePath '{}' -Verb RunAs", exe_path),
+            ])
+            .status()
+            .map_err(|e| e.to_string())?;
+
+        if status.success() {
+            app.exit(0);
+            Ok(())
+        } else {
+            Err("请求管理员权限失败，请手动右键以管理员身份运行".to_string())
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = app;
+        Err("当前系统不支持该操作".to_string())
+    }
 }
 
 #[tauri::command]
@@ -124,6 +156,7 @@ pub fn run() {
         .manage(AnalysisState::default())
         .invoke_handler(tauri::generate_handler![
             get_lcu_status,
+            restart_as_admin,
             request_lcu,
             select_video_file,
             open_analysis_window,
